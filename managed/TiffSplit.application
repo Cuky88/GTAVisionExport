@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asmv1:assembly xsi:schemaLocation="urn:schemas-microsoft-com:asm.v1 assembly.adaptive.xsd" manifestVersion="1.0" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" xmlns:dsig="http://www.w3.org/2000/09/xmldsig#" xmlns:co.v1="urn:schemas-microsoft-com:clickonce.v1" xmlns:co.v2="urn:schemas-microsoft-com:clickonce.v2" xmlns="urn:schemas-microsoft-com:asm.v2" xmlns:asmv1="urn:schemas-microsoft-com:asm.v1" xmlns:asmv2="urn:schemas-microsoft-com:asm.v2" xmlns:xrml="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <assemblyIdentity name="TiffSplit.application" version="1.0.0.11" publicKeyToken="771732fa8228dcb3" language="neutral" processorArchitecture="msil" xmlns="urn:schemas-microsoft-com:asm.v1" />
+  <description asmv2:publisher="PDXSOFT" asmv2:product="TiffSplit" xmlns="urn:schemas-microsoft-com:asm.v1" />
+  <deployment install="true" mapFileExtensions="true">
+    <subscription>
+      <update>
+        <beforeApplicationStartup />
+      </update>
+    </subscription>
+    <deploymentProvider codebase="http://tiffsplitter.codeplex.com/releases/clickonce/TiffSplit.application" />
+  </deployment>
+  <compatibleFrameworks xmlns="urn:schemas-microsoft-com:clickonce.v2">
+    <framework targetVersion="4.0" profile="Client" supportedRuntime="4.0.30319" />
+    <framework targetVersion="4.0" profile="Full" supportedRuntime="4.0.30319" />
+  </compatibleFrameworks>
+  <dependency>
+    <dependentAssembly dependencyType="install" codebase="Application Files\TiffSplit_1_0_0_11\TiffSplit.exe.manifest" size="7984">
+      <assemblyIdentity name="TiffSplit.exe" version="1.0.0.11" publicKeyToken="771732fa8228dcb3" language="neutral" processorArchitecture="msil" type="win32" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+        <dsig:DigestValue>bkbETFE/V0lULGUb0atexRzDgyQ=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+<publisherIdentity name="CN=CORP\gnegovetic" issuerKeyHash="effae7ae654f3bcd9a73d5fc6fa3e60a834d8890" /><Signature Id="StrongNameSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>nBnw8i3UGXrEv6uwk5UY8lxQGyA=</DigestValue></Reference></SignedInfo><SignatureValue>i9YdgYEyWyiqy/jXVYNFQEHOY6SC0+S230oSuMtnaNFOMPmmAhNDzgDH+syG6dWhvLkMACF/E0TVMmOGLoWg1b5Um0SoGc8UQySuKLqaX7XEd16XfMQxaz8LRmGYf0qQwqAWWiKBG0teWyPrFcoORnIqDyGasE5buhiTf0BZ2UM=</SignatureValue><KeyInfo Id="StrongNameKeyInfo"><KeyValue><RSAKeyValue><Modulus>tzbBWgFwtTh29SmyZffLBvy93meBsI8I+nSKs7qrqMqxQ0pbnlPbZmEFxfBoShYk+htpv2vb2FdBMY72rDpXvHQf+86RXs1k2xhkLl7NyQqAmdTvjlwRbEA01xd4CBWDXko3DLhp5cNveeB65ytYKBh+59ebx/GVKY+arOUEqJs=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><msrel:RelData xmlns:msrel="http://schemas.microsoft.com/windows/rel/2005/reldata"><r:license xmlns:r="urn:mpeg:mpeg21:2003:01-REL-R-NS" xmlns:as="http://schemas.microsoft.com/windows/pki/2005/Authenticode"><r:grant><as:ManifestInformation Hash="201b505cf2189593b0abbfc47a19d42df2f0199c" Description="" Url=""><as:assemblyIdentity name="TiffSplit.application" version="1.0.0.11" publicKeyToken="771732fa8228dcb3" language="neutral" processorArchitecture="msil" xmlns="urn:schemas-microsoft-com:asm.v1" /></as:ManifestInformation><as:SignedBy /><as:AuthenticodePublisher><as:X509SubjectName>CN=CORP\gnegovetic</as:X509SubjectName></as:AuthenticodePublisher></r:grant><r:issuer><Signature Id="AuthenticodeSignature" xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI=""><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>n9eEU68LUUxiY/7W3hZqHEWSjf4=</DigestValue></Reference></SignedInfo><SignatureValue>dCaba2tVWORootDqyV8wU7/N583Wknp1FybVE21Wsv6adlAiqn8qt5q34gbdao+Rr545OkliXvLdicucYghHIFamGMTb0s3BHKbbfSbAZsixGJ5ZPThe2DGKnRtR0Eh2BOXP0yytjpimdjFaLMQEDzByFy/uK/Uop6kHeGn3AdU=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>tzbBWgFwtTh29SmyZffLBvy93meBsI8I+nSKs7qrqMqxQ0pbnlPbZmEFxfBoShYk+htpv2vb2FdBMY72rDpXvHQf+86RXs1k2xhkLl7NyQqAmdTvjlwRbEA01xd4CBWDXko3DLhp5cNveeB65ytYKBh+59ebx/GVKY+arOUEqJs=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue><X509Data><X509Certificate>MIIB1TCCAT6gAwIBAgIQY6FO3jRoxqxKvr/zv5gXtjANBgkqhkiG9w0BAQUFADApMScwJQYDVQQDHh4AQwBPAFIAUABcAGcAbgBlAGcAbwB2AGUAdABpAGMwHhcNMTEwMTIwMjAxODM5WhcNMTIwMTIxMDIxODM5WjApMScwJQYDVQQDHh4AQwBPAFIAUABcAGcAbgBlAGcAbwB2AGUAdABpAGMwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALc2wVoBcLU4dvUpsmX3ywb8vd5ngbCPCPp0irO6q6jKsUNKW55T22ZhBcXwaEoWJPobab9r29hXQTGO9qw6V7x0H/vOkV7NZNsYZC5ezckKgJnU745cEWxANNcXeAgVg15KNwy4aeXDb3ngeucrWCgYfufXm8fxlSmPmqzlBKibAgMBAAEwDQYJKoZIhvcNAQEFBQADgYEAmaRCS25jU2SvWV8sci4GNlAgYurXN5ZhUFkjpKPZg2YpFLTsk/Rgv2+zbhsW6HLHIa3Ebuxw7mcLiEeyOE47XzYbDLAC9pWR5l9TboAqu+2PeY6F0ICqVyVLGzKxmOjNQZob2pQqNbEIYa8QnRuoiO3B2+3BrPRJickb2XpA6zY=</X509Certificate></X509Data></KeyInfo></Signature></r:issuer></r:license></msrel:RelData></KeyInfo></Signature></asmv1:assembly>

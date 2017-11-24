@@ -35,6 +35,7 @@ using Color = System.Windows.Media.Color;
 using System.Configuration;
 using System.Threading;
 using IniParser;
+using SharpDX.Mathematics;
 
 namespace GTAVisionExport {
     
@@ -47,8 +48,8 @@ namespace GTAVisionExport {
 #endif
         //private readonly string dataPath =
         //    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Data");
-        private readonly string dataPath = @"Z:\archives\";
-        private readonly Weather[] wantedWeather = new Weather[] {Weather.Clear, Weather.Clouds, Weather.Overcast, Weather.Raining, Weather.Christmas};
+        private readonly string dataPath = @"D:\Devel\GTAVisionExport\managed\Data\";
+        private readonly Weather[] wantedWeather = new Weather[] {Weather.Clear, Weather.ExtraSunny, Weather.Overcast, Weather.Foggy, Weather.Clouds};
         private Player player;
         private string outputPath;
         private GTARun run;
@@ -66,6 +67,7 @@ namespace GTAVisionExport {
         private speedAndTime lowSpeedTime = new speedAndTime();
         private bool IsGamePaused = false;
         private StereoCamera cams;
+
         public VisionExport()
         {
             if (!Directory.Exists(dataPath)) Directory.CreateDirectory(dataPath);
@@ -205,8 +207,6 @@ namespace GTAVisionExport {
         }
         public void OnTick(object o, EventArgs e)
         {
-            
-            
 
             if (server.Poll(10, SelectMode.SelectRead) && connection == null)
             {
@@ -537,7 +537,7 @@ namespace GTAVisionExport {
                 */
                 var data = GTAData.DumpData(Game.GameTime + ".tiff", new List<Weather>(wantedWeather));
 
-                string path = @"C:\Users\NGV-02\Documents\Data\trymatrix.txt";
+                string path = @"D:\Devel\GTAVisionExport\managed\Data\trymatrix.txt";
                 // This text is added only once to the file.
                 if (!File.Exists(path))
                 {
@@ -607,65 +607,117 @@ namespace GTAVisionExport {
                 //UI.Notify((connection != null && connection.Connected).ToString());
                 */
                 //var color = VisionNative.GetColorBuffer();
-                for (int i = 0; i < 100; i++)
+
+                var dateTimeFormat = @"yyyy-MM-dd_HH-mm-ss";
+
+                for (int i = 0; i < 20000; i++)
                 {
                     List<byte[]> colors = new List<byte[]>();
                     Game.Pause(true);
+
+                    colors.Add(VisionNative.GetColorBuffer());
                     var depth = VisionNative.GetDepthBuffer();
                     var stencil = VisionNative.GetStencilBuffer();
-                    foreach (var wea in wantedWeather)
-                    {
-                        World.TransitionToWeather(wea, 0.0f);
-                        Script.Wait(1);
-                        colors.Add(VisionNative.GetColorBuffer());
-                    }
+                    Script.Wait(1);
+                    //foreach (var wea in wantedWeather)
+                    //{
+                    //    World.TransitionToWeather(wea, 0.0f);
+                    //    Script.Wait(1);
+                    //    colors.Add(VisionNative.GetColorBuffer());
+                    //}
 
-                    Game.Pause(false);
-                    var res = Game.ScreenResolution;
-                    var t = Tiff.Open(Path.Combine(dataPath, "info" + i.ToString() + ".tiff"), "w");
-                    ImageUtils.WriteToTiff(t, res.Width, res.Height, colors, depth, stencil);
-                    t.Close();
-                    UI.Notify(GameplayCamera.FieldOfView.ToString());
-                    //UI.Notify((connection != null && connection.Connected).ToString());
+                    //Game.Pause(false);
+
+                    if (depth != null)
+                    {
+                        var res = Game.ScreenResolution;
+                        //var t = Tiff.Open(Path.Combine(dataPath, DateTime.UtcNow.ToString(dateTimeFormat) + ".tiff"), "w");
+                        var t = Tiff.Open(Path.Combine(dataPath, "info" + i.ToString() + ".tiff"), "w");
+                        ImageUtils.WriteToTiff(t, res.Width, res.Height, colors, depth, stencil);
+                        t.Close();
+                        //UI.Notify(GameplayCamera.FieldOfView.ToString());
+                        //UI.Notify((connection != null && connection.Connected).ToString());
+                    }
+                    else
+                    {
+                        UI.Notify("No Depth Data aquired yet");
+                    }
 
 
                     var data = GTAData.DumpData(Game.GameTime + ".dat", new List<Weather>(wantedWeather));
+                    Script.Wait(1);
 
-                    string path = @"C:\Users\NGV-02\Documents\Data\info.txt";
+                    string path = @"D:\Devel\GTAVisionExport\managed\Data\info.txt";
                     // This text is added only once to the file.
                     if (!File.Exists(path))
                     {
                         // Create a file to write to.
                         using (StreamWriter file = File.CreateText(path))
                         {
-                            file.WriteLine("cam direction & Ped pos file");
+                            file.WriteLine("File created on " + data.Timestamp);
                         }
                     }
 
                     using (StreamWriter file = File.AppendText(path))
                     {
                         file.WriteLine("==============info" + i.ToString() + ".tiff 's metadata=======================");
-                        file.WriteLine("cam pos");
-                        file.WriteLine(GameplayCamera.Position.X.ToString());
-                        file.WriteLine(GameplayCamera.Position.Y.ToString());
-                        file.WriteLine(GameplayCamera.Position.Z.ToString());
-                        file.WriteLine("cam direction");
-                        file.WriteLine(GameplayCamera.Direction.X.ToString());
-                        file.WriteLine(GameplayCamera.Direction.Y.ToString());
-                        file.WriteLine(GameplayCamera.Direction.Z.ToString());
-                        file.WriteLine("character");
+                        file.WriteLine("Image Dimensions");
+                        file.WriteLine("w, h: " + data.ImageWidth + ", " + data.ImageHeight);
+                        file.WriteLine("Game World Timestamp");
+                        file.WriteLine(data.LocalTime);
+                        file.WriteLine("Captured Weathers");
+                        file.WriteLine(String.Join("; ", data.CapturedWeathers)); 
+                        file.WriteLine("Player Camera Position");
+                        file.WriteLine(Game.Player.Character.CurrentVehicle.Position.ToString());
+                        file.WriteLine("Player Camera Rotation");
+                        file.WriteLine(Game.Player.Character.CurrentVehicle.Rotation.ToString());
+                        file.WriteLine("Player Camera Projection Matrix");
+                        file.WriteLine(data.ProjectionMatrix.ToMatrixString());
+                        file.WriteLine("Player Camera View Matrix");
+                        file.WriteLine(data.ViewMatrix.ToMatrixString());
+                        file.WriteLine("Player Character Position");
                         file.WriteLine(data.Pos.X.ToString());
                         file.WriteLine(data.Pos.Y.ToString());
                         file.WriteLine(data.Pos.Z.ToString());
+
                         foreach (var detection in data.Detections)
                         {
+                            file.WriteLine("==========================");
                             file.WriteLine(detection.Type.ToString());
+                            file.WriteLine("==========================");
+                            file.WriteLine("## Object Class ##");
+                            file.WriteLine("Class: " + detection.cls.ToString());
+                            file.WriteLine("## Hash Code ##");
+                            file.WriteLine(detection.HashCode.ToString());
+                            file.WriteLine("## Number Plate ##");
+                            file.WriteLine(detection.NumberPlate);
+                            file.WriteLine("## Speed in km/h ##");
+                            file.WriteLine(detection.Speed.ToString());
+                            file.WriteLine("## Wheel Angle ##");
+                            file.WriteLine(detection.Wheel.ToString());
+                            file.WriteLine("## Position ##");
                             file.WriteLine(detection.Pos.X.ToString());
                             file.WriteLine(detection.Pos.Y.ToString());
                             file.WriteLine(detection.Pos.Z.ToString());
+                            file.WriteLine("## Rotation ##");
+                            file.WriteLine(detection.Rot.X.ToString());
+                            file.WriteLine(detection.Rot.Y.ToString());
+                            file.WriteLine(detection.Rot.Z.ToString());
+                            file.WriteLine("## Dimension ##");
+                            file.WriteLine(detection.Dim.X.ToString());
+                            file.WriteLine(detection.Dim.Y.ToString());
+                            file.WriteLine(detection.Dim.Z.ToString());
+                            file.WriteLine("## 2DBB ##");
+                            file.WriteLine(detection.BBox.Min.X.ToString());
+                            file.WriteLine(detection.BBox.Min.Y.ToString());
+                            file.WriteLine(detection.BBox.Max.X.ToString());
+                            file.WriteLine(detection.BBox.Max.Y.ToString());
+                            file.WriteLine("## 3DBB ##");
+                            file.WriteLine(detection.BBox3D.Minimum.ToString());
+                            file.WriteLine(detection.BBox3D.Maximum.ToString());
                         }
                     }
-
+                    Game.Pause(false);
                     Script.Wait(200);
                 }
         }

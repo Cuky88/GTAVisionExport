@@ -97,7 +97,12 @@ namespace GTAVisionUtils
         public DetectionClass cls { get; set; }
         public GTAVector Pos { get; set; }
         public GTAVector Rot { get; set; }
+        public GTAVector Dim { get; set; }
         public float Distance { get; set; }
+        public float Speed { get; set; }
+        public float Wheel { get; set; }
+        public int HashCode { get; set; }
+        public string NumberPlate { get; set; }
         public GTABoundingBox2 BBox { get; set; }
         public BoundingBox BBox3D { get; set; }
         public int Handle { get; set; }
@@ -105,9 +110,11 @@ namespace GTAVisionUtils
         {
             Type = type;
             Pos = new GTAVector(e.Position);
+            Dim = new GTAVector(e.Model.GetDimensions());
             Distance = Game.Player.Character.Position.DistanceTo(e.Position);
             BBox = GTAData.ComputeBoundingBox(e, e.Position);
             Handle = e.Handle;
+            HashCode = e.GetHashCode();
             
             Rot = new GTAVector(e.Rotation);
             cls = DetectionClass.Unknown;
@@ -124,8 +131,12 @@ namespace GTAVisionUtils
         public GTADetection(Vehicle v) : this(v, DetectionType.car)
         {
             cls = (DetectionClass)Enum.Parse(typeof(DetectionClass),  v.ClassType.ToString());
+            Speed = (float)(v.Speed * 3.6);
+            Wheel = v.SteeringAngle;
+            NumberPlate = v.NumberPlate;
         }
     }
+
     public class GTAVector
     {
         public float X { get; set; }
@@ -204,7 +215,7 @@ namespace GTAVisionUtils
             m.GetDimensions(out gmin, out gmax);
             var bbox = new SharpDX.BoundingBox((SharpDX.Vector3)new GTAVector(gmin), (SharpDX.Vector3)new GTAVector(gmax));
             //Console.WriteLine(bbox.GetCorners()[0]);
-            /*
+            
             for (int i = 0; i < bbox.GetCorners().Length; ++i) {
                 for (int j = 0; j < bbox.GetCorners().Length; ++j) {
                     if (j == i) continue;
@@ -213,7 +224,7 @@ namespace GTAVisionUtils
                     HashFunctions.Draw3DLine(e.GetOffsetInWorldCoords(new Vector3(c1.X, c1.Y, c1.Z)), e.GetOffsetInWorldCoords(new Vector3(c2.X, c2.Y, c2.Z)), 0,0);
                 }
             }
-            */
+            
             /*
             for (int i = 0; i < bbox.GetCorners().Length; ++i)
             {
