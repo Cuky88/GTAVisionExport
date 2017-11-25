@@ -78,8 +78,9 @@
       <HintPath>..\packages\GDAL.1.11.1\lib\net40\osr_csharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="ScriptHookVDotNet">
-      <HintPath>G:\games\SteamLibrary\steamapps\common\Grand Theft Auto V\ScriptHookVDotNet.dll</HintPath>
+    <Reference Include="ScriptHookVDotNet2, Version=2.10.2.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Scripts\ScriptHookVDotNet\ScriptHookVDotNet2.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX, Version=3.1.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
       <HintPath>..\packages\SharpDX.3.1.1\lib\net45\SharpDX.dll</HintPath>
@@ -94,6 +95,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
@@ -144,6 +146,9 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\VVVV.FreeImage.3.15.1.1\build\net40\VVVV.FreeImage.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\VVVV.FreeImage.3.15.1.1\build\net40\VVVV.FreeImage.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files\Rockstar Games\Grand Theft Auto V\scripts"</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

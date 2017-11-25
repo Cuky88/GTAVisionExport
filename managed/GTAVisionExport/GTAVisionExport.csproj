@@ -80,9 +80,9 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
-    <Reference Include="ScriptHookVDotNet">
-      <HintPath>D:\Games\SteamLibrary\steamapps\common\Grand Theft Auto V\ScriptHookVDotNet.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="ScriptHookVDotNet2, Version=2.10.2.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Scripts\ScriptHookVDotNet\ScriptHookVDotNet2.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -131,15 +131,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="ScriptHookVDotNet.dll" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <Content Include="ScriptHookVDotNet2.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+    <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files\Rockstar Games\Grand Theft Auto V\scripts"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

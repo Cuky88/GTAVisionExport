@@ -47,7 +47,7 @@ namespace GTAVisionExport {
 #endif
         //private readonly string dataPath =
         //    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Data");
-        private readonly string dataPath = @"Z:\archives\";
+        private readonly string dataPath = @"D:\Devel\GTAVisionExport\managed\Data";
         private readonly Weather[] wantedWeather = new Weather[] {Weather.Clear, Weather.Clouds, Weather.Overcast, Weather.Raining, Weather.Christmas};
         private Player player;
         private string outputPath;
@@ -537,7 +537,7 @@ namespace GTAVisionExport {
                 */
                 var data = GTAData.DumpData(Game.GameTime + ".tiff", new List<Weather>(wantedWeather));
 
-                string path = @"C:\Users\NGV-02\Documents\Data\trymatrix.txt";
+                string path = @"D:\Devel\GTAVisionExport\managed\Data\trymatrix.txt";
                 // This text is added only once to the file.
                 if (!File.Exists(path))
                 {
@@ -631,7 +631,7 @@ namespace GTAVisionExport {
 
                     var data = GTAData.DumpData(Game.GameTime + ".dat", new List<Weather>(wantedWeather));
 
-                    string path = @"C:\Users\NGV-02\Documents\Data\info.txt";
+                    string path = @"D:\Devel\GTAVisionExport\managed\Data\info.txt";
                     // This text is added only once to the file.
                     if (!File.Exists(path))
                     {
