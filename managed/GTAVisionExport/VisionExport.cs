@@ -1,44 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Reflection;
-using System.Diagnostics;
-using System.Drawing.Imaging;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GTA;
 using GTA.Math;
-using YamlDotNet;
-using YamlDotNet.Serialization;
-using BitMiracle.LibTiff.Classic;
 using System.Drawing;
-using System.Drawing.Imaging;
-using Amazon;
-using Amazon.Runtime;
-using YamlDotNet.RepresentationModel;
 using Amazon.S3;
-using Amazon.S3.IO;
-using Amazon.S3.Model;
-using System.IO.Pipes;
 using System.Net;
 using VAutodrive;
 using System.Net.Sockets;
-using System.Windows.Media.Imaging;
 using GTAVisionUtils;
 using System.IO.Compression;
-using System.Runtime.InteropServices;
-using System.Windows.Interop;
 using GTA.Native;
-using Color = System.Windows.Media.Color;
-using System.Configuration;
-using System.Threading;
 using IniParser;
-using SharpDX.Mathematics;
+using MathNet.Numerics.LinearAlgebra.Double;
+using Newtonsoft.Json;
+using System.Runtime.Serialization.Formatters.Binary;
 
-namespace GTAVisionExport {
-    
+namespace GTAVisionExport
+{
+    [JsonObject(IsReference = true)]
+    public class CollectedData
+    {
+        public string Image { get; set; }
+        public DateTime RealTime { get; set; }
+        public TimeSpan GameTime { get; set; }
+        public int ImageWidth { get; set; }
+        public int ImageHeight { get; set; }
+        public int UIwidth { get; set; }
+        public int UIheight { get; set; }
+        public int CamHash { get; set; }
+        public int GameTime2 { get; set; }
+        public double CamFOV { get; set; }
+        public double CamNearClip { get; set; }
+        public double CamFarClip { get; set; }
+        public GTAVector Campos { get; set; }
+        public GTAVector Camrot { get; set; }
+        public GTAVector Camdir { get; set; }
+        public GTAVector Carpos { get; set; }
+        public GTAVector Carrot { get; set; }
+        public DenseMatrix PMatrix { get; set; }
+        public DenseMatrix VMatrix { get; set; }
+        public GTAVector Gamerpos { get; set; }
+        public List<GTADetection> Detections = new List<GTADetection>();
+    }
+
     class VisionExport : Script
     {
 #if DEBUG
@@ -49,7 +58,7 @@ namespace GTAVisionExport {
         //private readonly string dataPath =
         //    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Data");
         private readonly string dataPath = @"D:\Devel\GTAVisionExport\managed\Data\";
-        private readonly Weather[] wantedWeather = new Weather[] {Weather.Clear, Weather.ExtraSunny, Weather.Overcast, Weather.Foggy, Weather.Clouds};
+        private readonly Weather[] wantedWeather = new Weather[] { Weather.Clear, Weather.ExtraSunny, Weather.Overcast, Weather.Foggy, Weather.Clouds };
         private Player player;
         private string outputPath;
         private GTARun run;
@@ -67,6 +76,8 @@ namespace GTAVisionExport {
         private speedAndTime lowSpeedTime = new speedAndTime();
         private bool IsGamePaused = false;
         private StereoCamera cams;
+        private string path;
+        private int FileCounter = 1;
 
         public VisionExport()
         {
@@ -79,7 +90,8 @@ namespace GTAVisionExport {
             //server = new UdpClient(5555);
             var parser = new FileIniDataParser();
             var location = AppDomain.CurrentDomain.BaseDirectory;
-            var data = parser.ReadFile(Path.Combine(location, "GTAVision.ini"));
+            //var data = parser.ReadFile(Path.Combine(location, "GTAVision.ini"));
+            var data = new IniParser.Model.IniData();
             var access_key = data["aws"]["access_key"];
             var secret_key = data["aws"]["secret_key"];
             //client = new AmazonS3Client(new BasicAWSCredentials(access_key, secret_key), RegionEndpoint.USEast1);
@@ -88,258 +100,13 @@ namespace GTAVisionExport {
             //outStream = File.CreateText(outputPath);
             this.Tick += new EventHandler(this.OnTick);
             this.KeyDown += OnKeyDown;
-            
-            Interval = 1000;
-            if (enabled)
-            {
-                postgresTask?.Wait();
-                postgresTask = StartSession();
-                runTask?.Wait();
-                runTask = StartRun();
-            }
+
+            Interval = 0;
         }
 
-        private void handlePipeInput()
-        {
-            //UI.Notify(server.Available.ToString());
-            if (connection == null) return;
-            
-            byte[] inBuffer = new byte[1024];
-            string str = "";
-            int num = 0;
-            try
-            {
-                num = connection.Receive(inBuffer);
-                str = encoding.GetString(inBuffer, 0, num);
-            }
-            catch (SocketException e)
-            {
-                if (e.SocketErrorCode == SocketError.WouldBlock)
-                {
-                    return;
-                }
-                throw;
-            }
-            if (num == 0)
-            {
-                connection.Shutdown(SocketShutdown.Both);
-                connection.Close();
-                connection = null;
-                return;
-            }
-            UI.Notify(str.Length.ToString());
-            switch (str)
-            {
-                case "START_SESSION":
-                    postgresTask?.Wait();
-                    postgresTask = StartSession();
-                    runTask?.Wait();
-                    runTask = StartRun();
-                    break;
-                case "STOP_SESSION":
-                    StopRun();
-                    StopSession();
-                    break;
-                case "TOGGLE_AUTODRIVE":
-                    ToggleNavigation();
-                    break;
-                case "ENTER_VEHICLE":
-                    UI.Notify("Trying to enter vehicle");
-                    EnterVehicle();
-                    break;
-                case "AUTOSTART":
-                    Autostart();
-                    break;
-                case "RELOADGAME":
-                    ReloadGame();
-                    break;
-                case "RELOAD":
-                    FieldInfo f = this.GetType().GetField("_scriptdomain", BindingFlags.NonPublic | BindingFlags.Instance);
-                    object domain = f.GetValue(this);
-                    MethodInfo m = domain.GetType()
-                        .GetMethod("DoKeyboardMessage", BindingFlags.Instance | BindingFlags.Public);
-                    m.Invoke(domain, new object[] {Keys.Insert, true, false, false, false});
-                    break;
-                case "GET_SCREEN":
-                    var last = ImageUtils.getLastCapturedFrame();
-                    Int64 size = last.Length;
-                    size = IPAddress.HostToNetworkOrder(size);
-                    connection.Send(BitConverter.GetBytes(size));
-                    connection.Send(last);
-                    break;
-
-            }
-        }
-
-        private void UploadFile()
-        {
-            
-            archive.Dispose();
-            var oldOutput = outputPath;
-            if (oldOutput != null)
-            {
-                new Thread(() =>
-                {
-                    File.Move(oldOutput, Path.Combine(dataPath, run.guid + ".zip"));
-                }).Start();
-            }
-            
-            outputPath = Path.GetTempFileName();
-            S3Stream = File.Open(outputPath, FileMode.Truncate);
-            archive = new ZipArchive(S3Stream, ZipArchiveMode.Update);
-            //File.Delete(oldOutput);
-            
-            /*
-            archive.Dispose();
-            var req = new PutObjectRequest {
-                BucketName = "gtadata",
-                Key = "images/" + run.guid + ".zip",
-                FilePath = outputPath
-            };
-            var resp = client.PutObjectAsync(req);
-            outputPath = Path.GetTempFileName();
-            S3Stream = File.Open(outputPath, FileMode.Truncate);
-            archive = new ZipArchive(S3Stream, ZipArchiveMode.Update);
-            
-            await resp;
-            File.Delete(req.FilePath);
-            */
-        }
         public void OnTick(object o, EventArgs e)
         {
 
-            if (server.Poll(10, SelectMode.SelectRead) && connection == null)
-            {
-                connection = server.Accept();
-                UI.Notify("CONNECTED");
-                connection.Blocking = false;
-            }
-            handlePipeInput();
-            if (!enabled) return;
-            
-            //Array values = Enum.GetValues(typeof(Weather));
-
-
-            switch (checkStatus()) {
-                case GameStatus.NeedReload:
-                    //TODO: need to get a new session and run?
-                    StopRun();
-                    runTask?.Wait();
-                    runTask = StartRun();
-                    //StopSession();
-                    //Autostart();
-                    UI.Notify("need reload game");
-                    Script.Wait(100);
-                    ReloadGame();
-                    break;
-                case GameStatus.NeedStart:
-                    //TODO do the autostart manually or automatically?
-                    //Autostart();
-                    // use reloading temporarily
-                    StopRun();
-                    
-                    ReloadGame();
-                    Script.Wait(100);
-                    runTask?.Wait();
-                    runTask = StartRun();
-                    //Autostart();
-                    break;
-                case GameStatus.NoActionNeeded:
-                    break;
-            }
-            if (!runTask.IsCompleted) return;
-            if (!postgresTask.IsCompleted) return;
-            
-            List<byte[]> colors = new List<byte[]>();
-            Game.Pause(true);
-            Script.Wait(500);
-            GTAData dat = GTAData.DumpData(Game.GameTime + ".tiff", new List<Weather>());
-            if (dat == null) return;
-            var thisframe = VisionNative.GetCurrentTime();
-            var depth = VisionNative.GetDepthBuffer();
-            var stencil = VisionNative.GetStencilBuffer();
-            colors.Add(VisionNative.GetColorBuffer());
-            /*
-            foreach (var wea in wantedWeather) {
-                World.TransitionToWeather(wea, 0.0f);
-                Script.Wait(1);
-                colors.Add(VisionNative.GetColorBuffer());
-            }*/
-            Game.Pause(false);
-            
-            /*
-            if (World.Weather != Weather.Snowing)
-            {
-                World.TransitionToWeather(Weather.Snowing, 1);
-                
-            }*/
-            var colorframe = VisionNative.GetLastColorTime();
-            var depthframe = VisionNative.GetLastConstantTime();
-            var constantframe = VisionNative.GetLastConstantTime();
-            //UI.Notify("DIFF: " + (colorframe - depthframe) + " FRAMETIME: " + (1 / Game.FPS) * 1000);
-            UI.Notify(colors[0].Length.ToString());
-            if (depth == null || stencil == null)
-            {
-                UI.Notify("No DEPTH");
-                return;
-            }
-
-            /*
-             * this code checks to see if there's drift
-             * it's kinda pointless because we end up "straddling" a present call,
-             * so the capture time difference can be ~1/4th of a frame but still the
-             * depth/stencil and color buffers are one frame offset from each other
-            if (Math.Abs(thisframe - colorframe) < 60 && Math.Abs(colorframe - depthframe) < 60 &&
-                Math.Abs(colorframe - constantframe) < 60)
-            {
-                
-
-
-
-                
-                PostgresExport.SaveSnapshot(dat, run.guid);
-            }
-            */
-            ImageUtils.WaitForProcessing();
-            ImageUtils.StartUploadTask(archive, Game.GameTime.ToString(), Game.ScreenResolution.Width,
-                Game.ScreenResolution.Height, colors, depth, stencil);
-            
-            PostgresExport.SaveSnapshot(dat, run.guid);
-            S3Stream.Flush();
-            if ((Int64)S3Stream.Length > (Int64)2048 * (Int64)1024 * (Int64)1024) {
-                ImageUtils.WaitForProcessing();
-                StopRun();
-                runTask?.Wait();
-                runTask = StartRun();
-            }
-        }
-
-        /* -1 = need restart, 0 = normal, 1 = need to enter vehicle */
-        public GameStatus checkStatus()
-        {
-            Ped player = Game.Player.Character;
-            if (player.IsDead) return GameStatus.NeedReload;
-            if (player.IsInVehicle())
-            {
-                Vehicle vehicle = player.CurrentVehicle;
-                //UI.Notify("T:" + Game.GameTime.ToString() + " S: " + vehicle.Speed.ToString());
-                if (vehicle.Speed < 1.0f) //speed is in mph
-                {
-                    if (lowSpeedTime.checkTrafficJam(Game.GameTime, vehicle.Speed))
-                    {
-                        return GameStatus.NeedReload;
-                    }
-                }
-                else
-                {
-                    lowSpeedTime.clearTime();
-                }
-                return GameStatus.NoActionNeeded;
-            }
-            else
-            {
-                return GameStatus.NeedReload;
-            }
         }
 
         public Bitmap CaptureScreen()
@@ -365,68 +132,6 @@ namespace GTAVisionExport {
 
         }
 
-        public void Autostart()
-        {
-            EnterVehicle();
-            Script.Wait(200);
-            ToggleNavigation();
-            Script.Wait(200);
-            postgresTask?.Wait();
-            postgresTask = StartSession();
-        }
-
-        public async Task StartSession(string name = session_name)
-        {
-            if (name == null) name = Guid.NewGuid().ToString();
-            if (curSessionId != -1) StopSession();
-            int id = await PostgresExport.StartSession(name);
-            curSessionId = id;
-        }
-
-        public void StopSession()
-        {
-            if (curSessionId == -1) return;
-            PostgresExport.StopSession(curSessionId);
-            curSessionId = -1;
-        }
-        public async Task StartRun()
-        {
-            await postgresTask;
-            if(run != null) PostgresExport.StopRun(run);
-            var runid = await PostgresExport.StartRun(curSessionId);
-
-            //var s3Info = new S3FileInfo(client, "gtadata", run.archiveKey);
-            //S3Stream = s3Info.Create();
-            
-            outputPath = Path.GetTempFileName();
-            S3Stream = File.Open(outputPath, FileMode.Truncate);
-            archive = new ZipArchive(S3Stream, ZipArchiveMode.Create);
-            
-            //archive = new ZipArchive(, ZipArchiveMode.Create);
-            
-            //archive = ZipFile.Open(Path.Combine(dataPath, run.guid + ".zip"), ZipArchiveMode.Create);
-            
-
-            run = runid;
-            enabled = true;
-        }
-
-        public void StopRun()
-        {
-            runTask?.Wait();
-            ImageUtils.WaitForProcessing();
-            if (S3Stream.CanWrite)
-            {
-                S3Stream.Flush();
-            }
-            enabled = false;
-            PostgresExport.StopRun(run);
-            UploadFile();
-            run = null;
-            
-            Game.Player.LastVehicle.Alpha = int.MaxValue;
-        }
-
         public void EnterVehicle()
         {
             /*
@@ -444,7 +149,7 @@ namespace GTAVisionExport {
         {
             //YOLO
             MethodInfo inf = kh.GetType().GetMethod("AtToggleAutopilot", BindingFlags.NonPublic | BindingFlags.Instance);
-            inf.Invoke(kh, new object[] {new KeyEventArgs(Keys.J)});
+            inf.Invoke(kh, new object[] { new KeyEventArgs(Keys.J) });
         }
 
         public void ReloadGame()
@@ -490,20 +195,20 @@ namespace GTAVisionExport {
 
         public void OnKeyDown(object o, KeyEventArgs k)
         {
-            if (k.KeyCode == Keys.PageUp)
-            {
-                postgresTask?.Wait();
-                postgresTask = StartSession();
-                runTask?.Wait();
-                runTask = StartRun();
-                UI.Notify("GTA Vision Enabled");
-            }
-            if (k.KeyCode == Keys.PageDown)
-            {
-                StopRun();
-                StopSession();
-                UI.Notify("GTA Vision Disabled");
-            }
+            //if (k.KeyCode == Keys.PageUp)
+            //{
+            //    postgresTask?.Wait();
+            //    postgresTask = StartSession();
+            //    runTask?.Wait();
+            //    runTask = StartRun();
+            //    UI.Notify("GTA Vision Enabled");
+            //}
+            //if (k.KeyCode == Keys.PageDown)
+            //{
+            //    StopRun();
+            //    StopSession();
+            //    UI.Notify("GTA Vision Disabled");
+            //}
             if (k.KeyCode == Keys.H) // temp modification
             {
                 EnterVehicle();
@@ -514,16 +219,16 @@ namespace GTAVisionExport {
             {
                 ReloadGame();
             }
-            if (k.KeyCode == Keys.U) // temp modification
-            {
-                var settings = ScriptSettings.Load("GTAVisionExport.xml");
-                var loc = AppDomain.CurrentDomain.BaseDirectory;
+            //if (k.KeyCode == Keys.U) // temp modification
+            //{
+            //    var settings = ScriptSettings.Load("GTAVisionExport.xml");
+            //    var loc = AppDomain.CurrentDomain.BaseDirectory;
 
-                //UI.Notify(ConfigurationManager.AppSettings["database_connection"]);
-                var str = settings.GetValue("", "ConnectionString");
-                UI.Notify(loc);
+            //    //UI.Notify(ConfigurationManager.AppSettings["database_connection"]);
+            //    var str = settings.GetValue("", "ConnectionString");
+            //    UI.Notify(loc);
 
-            }
+            //}
             if (k.KeyCode == Keys.G) // temp modification
             {
                 /*
@@ -544,8 +249,8 @@ namespace GTAVisionExport {
                     // Create a file to write to.
                     using (StreamWriter file = File.CreateText(path))
                     {
-                        
-                        
+
+
                         file.WriteLine("cam direction file");
                         file.WriteLine("direction:");
                         file.WriteLine(GameplayCamera.Direction.X.ToString() + ' ' + GameplayCamera.Direction.Y.ToString() + ' ' + GameplayCamera.Direction.Z.ToString());
@@ -565,16 +270,16 @@ namespace GTAVisionExport {
                 }
             }
 
-            if (k.KeyCode == Keys.T) // temp modification
-            {
-                World.Weather = Weather.Raining;
-                /* set it between 0 = stop, 1 = heavy rain. set it too high will lead to sloppy ground */
-                Function.Call(GTA.Native.Hash._SET_RAIN_FX_INTENSITY, 0.5f);
-                var test = Function.Call<float>(GTA.Native.Hash.GET_RAIN_LEVEL);
-                UI.Notify("" + test);
-                World.CurrentDayTime = new TimeSpan(12, 0, 0);
-                //Script.Wait(5000);
-            }
+            //if (k.KeyCode == Keys.T) // temp modification
+            //{
+            //    World.Weather = Weather.Raining;
+            //    /* set it between 0 = stop, 1 = heavy rain. set it too high will lead to sloppy ground */
+            //    Function.Call(GTA.Native.Hash._SET_RAIN_FX_INTENSITY, 0.5f);
+            //    var test = Function.Call<float>(GTA.Native.Hash.GET_RAIN_LEVEL);
+            //    UI.Notify("" + test);
+            //    World.CurrentDayTime = new TimeSpan(12, 0, 0);
+            //    //Script.Wait(5000);
+            //}
 
             if (k.KeyCode == Keys.N)
             {
@@ -628,13 +333,14 @@ namespace GTAVisionExport {
 
                     //Game.Pause(false);
 
+                    var data = GTAData.DumpData(Game.GameTime + ".dat", new List<Weather>(wantedWeather));
+                    Script.Wait(0);
+
                     if (depth != null)
                     {
                         var res = Game.ScreenResolution;
-                        //var t = Tiff.Open(Path.Combine(dataPath, DateTime.UtcNow.ToString(dateTimeFormat) + ".tiff"), "w");
-                        var t = Tiff.Open(Path.Combine(dataPath, "info" + i.ToString() + ".tiff"), "w");
-                        ImageUtils.WriteToTiff(t, res.Width, res.Height, colors, depth, stencil);
-                        t.Close();
+                        var fileName = Path.Combine(dataPath, "gtav_" + i.ToString());
+                        ImageUtils.WriteToTiff(fileName, res.Width, res.Height, colors, depth, stencil);
                         //UI.Notify(GameplayCamera.FieldOfView.ToString());
                         //UI.Notify((connection != null && connection.Connected).ToString());
                     }
@@ -643,90 +349,82 @@ namespace GTAVisionExport {
                         UI.Notify("No Depth Data aquired yet");
                     }
 
-
-                    var data = GTAData.DumpData(Game.GameTime + ".dat", new List<Weather>(wantedWeather));
-                    Script.Wait(1);
-
-                    string path = @"D:\Devel\GTAVisionExport\managed\Data\info.txt";
-                    // This text is added only once to the file.
+                    path = @"D:\Devel\GTAVisionExport\managed\Data\ObjectList_" + FileCounter + ".json";
+                    //This text is added only once to the file.
                     if (!File.Exists(path))
                     {
                         // Create a file to write to.
                         using (StreamWriter file = File.CreateText(path))
                         {
-                            file.WriteLine("File created on " + data.Timestamp);
+                            //file.WriteLine("File number " + FileCounter.ToString());
+                            //file.WriteLine("All coordinates are in game space!");
+                            //file.WriteLine("");
                         }
                     }
 
-                    using (StreamWriter file = File.AppendText(path))
+                    long length = new System.IO.FileInfo(path).Length;
+          
+                    if (length / 1024 / 1024 > 10) //if json file bigger than 10 MB
                     {
-                        file.WriteLine("==============info" + i.ToString() + ".tiff 's metadata=======================");
-                        file.WriteLine("Image Dimensions");
-                        file.WriteLine("w, h: " + data.ImageWidth + ", " + data.ImageHeight);
-                        file.WriteLine("Game World Timestamp");
-                        file.WriteLine(data.LocalTime);
-                        file.WriteLine("Captured Weathers");
-                        file.WriteLine(String.Join("; ", data.CapturedWeathers)); 
-                        file.WriteLine("Player Camera Position");
-                        file.WriteLine(Game.Player.Character.CurrentVehicle.Position.ToString());
-                        file.WriteLine("Player Camera Rotation");
-                        file.WriteLine(Game.Player.Character.CurrentVehicle.Rotation.ToString());
-                        file.WriteLine("Player Camera Projection Matrix");
-                        file.WriteLine(data.ProjectionMatrix.ToMatrixString());
-                        file.WriteLine("Player Camera View Matrix");
-                        file.WriteLine(data.ViewMatrix.ToMatrixString());
-                        file.WriteLine("Player Character Position");
-                        file.WriteLine(data.Pos.X.ToString());
-                        file.WriteLine(data.Pos.Y.ToString());
-                        file.WriteLine(data.Pos.Z.ToString());
+                        FileCounter++;
+                        path = @"D:\Devel\GTAVisionExport\managed\Data\ObjectList_" + FileCounter + ".json";
 
-                        foreach (var detection in data.Detections)
+                        if (!File.Exists(path))
                         {
-                            file.WriteLine("==========================");
-                            file.WriteLine(detection.Type.ToString());
-                            file.WriteLine("==========================");
-                            file.WriteLine("## Object Class ##");
-                            file.WriteLine("Class: " + detection.cls.ToString());
-                            file.WriteLine("## Hash Code ##");
-                            file.WriteLine(detection.HashCode.ToString());
-                            file.WriteLine("## Number Plate ##");
-                            file.WriteLine(detection.NumberPlate);
-                            file.WriteLine("## Speed in km/h ##");
-                            file.WriteLine(detection.Speed.ToString());
-                            file.WriteLine("## Wheel Angle ##");
-                            file.WriteLine(detection.Wheel.ToString());
-                            file.WriteLine("## Position ##");
-                            file.WriteLine(detection.Pos.X.ToString());
-                            file.WriteLine(detection.Pos.Y.ToString());
-                            file.WriteLine(detection.Pos.Z.ToString());
-                            file.WriteLine("## Rotation ##");
-                            file.WriteLine(detection.Rot.X.ToString());
-                            file.WriteLine(detection.Rot.Y.ToString());
-                            file.WriteLine(detection.Rot.Z.ToString());
-                            file.WriteLine("## Dimension ##");
-                            file.WriteLine(detection.Dim.X.ToString());
-                            file.WriteLine(detection.Dim.Y.ToString());
-                            file.WriteLine(detection.Dim.Z.ToString());
-                            file.WriteLine("## 2DBB ##");
-                            file.WriteLine(detection.BBox.Min.X.ToString());
-                            file.WriteLine(detection.BBox.Min.Y.ToString());
-                            file.WriteLine(detection.BBox.Max.X.ToString());
-                            file.WriteLine(detection.BBox.Max.Y.ToString());
-                            file.WriteLine("## 3DBB ##");
-                            file.WriteLine(detection.BBox3D.Minimum.ToString());
-                            file.WriteLine(detection.BBox3D.Maximum.ToString());
+                            // Create a file to write to.
+                            using (StreamWriter file = File.CreateText(path))
+                            {
+                                //file.WriteLine("File number " + FileCounter.ToString());
+                                //file.WriteLine("All coordinates are in game space!");
+                                //file.WriteLine("");
+                            }
                         }
                     }
+
+                    CollectedData cd = new CollectedData
+                    {
+                        Image = "gtav_" + i.ToString() + ".tiff",
+                        ImageWidth = data.ImageWidth,
+                        ImageHeight = data.ImageHeight,
+                        UIwidth = data.UIWidth,
+                        UIheight = data.UIHeight,
+                        RealTime = data.Timestamp,
+                        GameTime = data.LocalTime,
+                        GameTime2 = data.GameTime,
+                        Campos = data.CamPos,
+                        Camrot = data.CamRot,
+                        Camdir = data.CamDirection,
+                        PMatrix = data.ProjectionMatrix,
+                        VMatrix = data.ViewMatrix,
+                        Gamerpos = data.GamerPos,
+                        Carpos = data.CarPos,
+                        Carrot = data.CarRot,
+                        CamHash = data.CamHash,
+                        CamFOV = data.CamFOV,
+                        CamNearClip = data.CamNearClip,
+                        CamFarClip = data.CamFarClip
+                    };
+
+                    foreach (var detection in data.Detections)
+                    {
+                        cd.Detections.Add(detection);
+                    }
+
+                    string jsonData = JsonConvert.SerializeObject(cd);
+                    File.AppendAllText(path, jsonData);
+                    File.AppendAllText(path, "\n");
+
                     Game.Pause(false);
-                    Script.Wait(200);
+                    Script.Wait(0);
                 }
-        }
-            if (k.KeyCode == Keys.I)
-            {
-                var info = new GTAVisionUtils.InstanceData();
-                UI.Notify(info.type);
-                UI.Notify(info.publichostname);
             }
+
+            //if (k.KeyCode == Keys.I)
+            //{
+            //    var info = new GTAVisionUtils.InstanceData();
+            //    UI.Notify(info.type);
+            //    UI.Notify(info.publichostname);
+            //}
         }
     }
 }

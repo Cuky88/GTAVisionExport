@@ -35,10 +35,8 @@ namespace GTAVisionUtils {
             List<byte[]> colors, byte[] depth, byte[] stencil)
         {
             var memstream = new MemoryStream();
-            var tiff = Tiff.ClientOpen(name, "w", memstream, new TiffStream());
-            WriteToTiff(tiff, w, h, colors, depth, stencil);
-            tiff.Flush();
-            tiff.Close();
+            WriteToTiff(name, w, h, colors, depth, stencil);
+
             var entry = archive.CreateEntry(name + ".tiff", CompressionLevel.NoCompression);
             var entryStream = entry.Open();
             lastCapturedBytes = memstream.ToArray();
@@ -49,8 +47,9 @@ namespace GTAVisionUtils {
 
         }
 
-        public static void WriteToTiff(Tiff t, int width, int height, List<byte[]> colors, byte[] depth, byte[] stencil)
+        public static void WriteToTiff(string name, int width, int height, List<byte[]> colors, byte[] depth, byte[] stencil)
         {
+            var t = Tiff.Open(name + ".tiff", "w");
             var pages = colors.Count + 2;
             var page = 0;
             foreach (var color in colors)
@@ -73,9 +72,10 @@ namespace GTAVisionUtils {
                 page++;
                 t.WriteDirectory();
             }
-            
-            t.CreateDirectory();
-            //page 2
+            t.Flush();
+            t.Close();
+
+            t = Tiff.Open(name + "-depth.tiff", "w");
             t.SetField(TiffTag.IMAGEWIDTH, width);
             t.SetField(TiffTag.IMAGELENGTH, height);
             t.SetField(TiffTag.ROWSPERSTRIP, height);
@@ -87,11 +87,11 @@ namespace GTAVisionUtils {
             t.SetField(TiffTag.COMPRESSION, Compression.LZW);
             t.SetField(TiffTag.PREDICTOR, Predictor.FLOATINGPOINT);
             t.SetField(TiffTag.SAMPLEFORMAT, SampleFormat.IEEEFP);
-            t.SetField(TiffTag.PAGENUMBER, page, pages);
             t.WriteEncodedStrip(0, depth, depth.Length);
-            page++;
-            t.WriteDirectory();
+            t.Flush();
+            t.Close();
 
+            t = Tiff.Open(name + "-stencil.tiff", "w");
             t.SetField(TiffTag.IMAGEWIDTH, width);
             t.SetField(TiffTag.IMAGELENGTH, height);
             t.SetField(TiffTag.ROWSPERSTRIP, height);
@@ -103,10 +103,9 @@ namespace GTAVisionUtils {
             t.SetField(TiffTag.COMPRESSION, Compression.LZW);
             t.SetField(TiffTag.PREDICTOR, Predictor.HORIZONTAL);
             t.SetField(TiffTag.SAMPLEFORMAT, SampleFormat.UINT);
-            t.SetField(TiffTag.PAGENUMBER, page, pages);
             t.WriteEncodedStrip(0, stencil, stencil.Length);
-            t.WriteDirectory();
             t.Flush();
+            t.Close();
         }
         
     }

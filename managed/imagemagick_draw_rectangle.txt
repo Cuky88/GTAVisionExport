@@ -1,0 +1,1 @@
+convert info10_0.png -draw "rectangle 408,463 718,713" info10_01.png

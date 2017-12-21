@@ -191,9 +191,9 @@ namespace GTAVisionUtils {
                 cmd.Parameters.Add(new NpgsqlParameter("@timestamp", data.Timestamp));
                 cmd.Parameters.Add(new NpgsqlParameter("@timeofday", data.LocalTime));
                 cmd.Parameters.Add(new NpgsqlParameter("@currentweather", data.CurrentWeather));
-                cmd.Parameters.Add(new NpgsqlParameter("@x", data.Pos.X));
-                cmd.Parameters.Add(new NpgsqlParameter("@y", data.Pos.Y));
-                cmd.Parameters.Add(new NpgsqlParameter("@z", data.Pos.Z));
+                cmd.Parameters.Add(new NpgsqlParameter("@x", data.GamerPos.X));
+                cmd.Parameters.Add(new NpgsqlParameter("@y", data.GamerPos.Y));
+                cmd.Parameters.Add(new NpgsqlParameter("@z", data.GamerPos.Z));
                 cmd.Parameters.AddWithValue("@dirx", data.CamDirection.X);
                 cmd.Parameters.AddWithValue("@diry", data.CamDirection.Y);
                 cmd.Parameters.AddWithValue("@dirz", data.CamDirection.Z);
@@ -252,17 +252,17 @@ namespace GTAVisionUtils {
                     cmd.Parameters["@xrot"].Value = detection.Rot.X;
                     cmd.Parameters["@yrot"].Value = detection.Rot.Y;
                     cmd.Parameters["@zrot"].Value = detection.Rot.Z;
-                    cmd.Parameters["@bbox"].Value =
-                        new NpgsqlBox(detection.BBox.Max.Y, detection.BBox.Max.X, detection.BBox.Min.Y, detection.BBox.Min.X);
+                    //cmd.Parameters["@bbox"].Value =
+                    //    new NpgsqlBox(detection.BBox.Max.Y, detection.BBox.Max.X, detection.BBox.Min.Y, detection.BBox.Min.X);
                     cmd.Parameters["@class"].Value = detection.cls;
                     cmd.Parameters["@handle"].Value = detection.Handle;
-                    cmd.Parameters["@minx"].Value = detection.BBox3D.Minimum.X;
-                    cmd.Parameters["@miny"].Value = detection.BBox3D.Minimum.Y;
-                    cmd.Parameters["@minz"].Value = detection.BBox3D.Minimum.Z;
+                    //cmd.Parameters["@minx"].Value = detection.BBox3D.Minimum.X;
+                    //cmd.Parameters["@miny"].Value = detection.BBox3D.Minimum.Y;
+                    //cmd.Parameters["@minz"].Value = detection.BBox3D.Minimum.Z;
 
-                    cmd.Parameters["@maxx"].Value = detection.BBox3D.Maximum.X;
-                    cmd.Parameters["@maxy"].Value = detection.BBox3D.Maximum.Y;
-                    cmd.Parameters["@maxz"].Value = detection.BBox3D.Maximum.Z;
+                    //cmd.Parameters["@maxx"].Value = detection.BBox3D.Maximum.X;
+                    //cmd.Parameters["@maxy"].Value = detection.BBox3D.Maximum.Y;
+                    //cmd.Parameters["@maxz"].Value = detection.BBox3D.Maximum.Z;
 
                     cmd.ExecuteNonQuery();
                 }
