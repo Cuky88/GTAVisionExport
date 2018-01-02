@@ -480,44 +480,47 @@ def main():
 
 def main2():
     files = [f for f in listdir(in_directory) if isfile(join(in_directory, f)) and f.split(".")[-1]=="tiff" and len(f.split("-"))==1]
-    #files = ["gtav_0.tiff", "gtav_1.tiff", "gtav_2.tiff", "gtav_4.tiff"]
+    #files = ["gtav_3.tiff", "gtav_1.tiff", "gtav_2.tiff", "gtav_4.tiff"]
     
     ImageFile.LOAD_TRUNCATED_IMAGES = True
-    for name in files:
-        print(name) 
-        
+    for name in files:       
         bbox2 = []
         for d in data:
-            if d['Image'] == name:
-                img = cv2.imread(os.path.join(in_directory, name), 1)
-                print(os.path.join(in_directory, name))
-                if img == None: break
+            if d['Image'] == name and int(name.split("_")[-1][:-5])+1 < len(files):
+                splitname = name.split("_")
+                imname = 'D:\\Devel\\GTAVisionExport\\managed\\Data\\' + splitname[0] + "_" + str(int(splitname[-1][:-5])+1) + ".tiff"
+                print(imname)
+                imgPil = Image.open(imname)
+                img = cv2.cvtColor(np.array(imgPil), cv2.COLOR_BGR2RGB)
+                if img == None: print("Image %s not found!"%('D:\\Devel\\GTAVisionExport\\managed\\Data\\' + name)); break
                 for i,p in enumerate(d['Detections']):
-                    print(p["Visibility"])
                     if p["Type"] == "car" and p["Visibility"]:
                         
                         print((p["FUR"]["X"],p["FUR"]["Y"]), (p["FUL"]["X"],p["FUL"]["Y"]), (p["BUL"]["X"],p["BUL"]["Y"]), (p["BUR"]["X"],p["BUR"]["Y"]), 
                         (p["FLL"]["X"],p["FLL"]["Y"]), (p["BLL"]["X"],p["BLL"]["Y"]), (p["BLR"]["X"],p["BLR"]["Y"]), (p["FLR"]["X"],p["FLR"]["Y"]))
                         
-                        img = cv2.line(img, (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (255, 0, 0), 1)
+                        img = cv2.line(img, (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (255, 0, 255), 1)
 
-                        img = cv2.line(img, (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (255, 0, 0), 1)
+                        img = cv2.line(img, (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (255, 0, 255), 1)
 
-                        img = cv2.line(img, (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (255, 0, 0), 1)
-                        img = cv2.line(img, (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (255, 0, 0), 1)
+                        img = cv2.line(img, (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (int(p["FLR"]["X"]),int(p["FLR"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (int(p["FLL"]["X"]),int(p["FLL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (int(p["BLL"]["X"]),int(p["BLL"]["Y"])), (255, 0, 255), 1)
+                        img = cv2.line(img, (int(p["BUR"]["X"]),int(p["BUR"]["Y"])), (int(p["BLR"]["X"]),int(p["BLR"]["Y"])), (255, 0, 255), 1)
 
                 cv2.imshow(name,img)
 
                 key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
+
+                if key == 27: # escape
+                    break
 
 if __name__ == '__main__':
     if len(sys.argv) > 1: main2()

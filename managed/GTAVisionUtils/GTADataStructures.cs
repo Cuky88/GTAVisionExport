@@ -1,25 +1,13 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Security.Policy;
 using GTA;
-using GTA.Math;
-using System.Globalization;
 using GTA.Native;
-using Npgsql;
-using SharpDX;
-using SharpDX.Mathematics;
-using NativeUI;
-using System.Drawing;
 using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.LinearAlgebra;
-using MathNet.Numerics;
 using Vector2 = GTA.Math.Vector2;
 using Vector3 = GTA.Math.Vector3;
-using Point = System.Drawing.Point;
-using System.IO;
+using SharpDX;
 
 namespace GTAVisionUtils
 {
@@ -129,17 +117,6 @@ namespace GTAVisionUtils
         public GTAVector FLLGame;
         public GTAVector BLLGame;
         public GTAVector BLRGame;
-        public GTAVector RightVector;
-        public GTAVector ForwardVector;
-        public GTAVector UpVector;
-        public float GroundHeight1 { get; set; }
-        public float GroundHeight2 { get; set; }
-        public float GroundHeight3 { get; set; }
-        public float GroundHeight4 { get; set; }
-        public float GroundHeight5 { get; set; }
-        public float GroundHeight6 { get; set; }
-        public float GroundHeight7 { get; set; }
-        public float GroundHeight8 { get; set; }
 
         public GTADetection(Entity e, DetectionType type, int ImgW, int ImgH, GTAVector CamPos)
         {
@@ -158,75 +135,35 @@ namespace GTAVisionUtils
             Vector3 gmax;
             e.Model.GetDimensions(out gmin, out gmax);
             Dim = new GTAVector(gmax - gmin);
+            
+            BoundingBox BBox3DGame = new SharpDX.BoundingBox((SharpDX.Vector3)new GTAVector(gmin), (SharpDX.Vector3)new GTAVector(gmax));
+            FURGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[0].X, BBox3DGame.GetCorners()[0].Y, BBox3DGame.GetCorners()[0].Z)));
+            FULGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[1].X, BBox3DGame.GetCorners()[1].Y, BBox3DGame.GetCorners()[1].Z)));
+            BULGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[2].X, BBox3DGame.GetCorners()[2].Y, BBox3DGame.GetCorners()[2].Z)));
+            BURGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[3].X, BBox3DGame.GetCorners()[3].Y, BBox3DGame.GetCorners()[3].Z)));
+            FLRGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[4].X, BBox3DGame.GetCorners()[4].Y, BBox3DGame.GetCorners()[4].Z)));
+            FLLGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[5].X, BBox3DGame.GetCorners()[5].Y, BBox3DGame.GetCorners()[5].Z)));
+            BLLGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[6].X, BBox3DGame.GetCorners()[6].Y, BBox3DGame.GetCorners()[6].Z)));
+            BLRGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[7].X, BBox3DGame.GetCorners()[7].Y, BBox3DGame.GetCorners()[7].Z)));
 
-            //BoundingBox BBox3DGame = new SharpDX.BoundingBox((SharpDX.Vector3)new GTAVector(gmin), (SharpDX.Vector3)new GTAVector(gmax));
-            //FURGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[0].X, BBox3DGame.GetCorners()[0].Y, BBox3DGame.GetCorners()[0].Z)));
-            //FULGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[1].X, BBox3DGame.GetCorners()[1].Y, BBox3DGame.GetCorners()[1].Z)));
-            //BULGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[2].X, BBox3DGame.GetCorners()[2].Y, BBox3DGame.GetCorners()[2].Z)));
-            //BURGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[3].X, BBox3DGame.GetCorners()[3].Y, BBox3DGame.GetCorners()[3].Z)));
-            //FLRGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[4].X, BBox3DGame.GetCorners()[4].Y, BBox3DGame.GetCorners()[4].Z)));
-            //FLLGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[5].X, BBox3DGame.GetCorners()[5].Y, BBox3DGame.GetCorners()[5].Z)));
-            //BLLGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[6].X, BBox3DGame.GetCorners()[6].Y, BBox3DGame.GetCorners()[6].Z)));
-            //BLRGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[7].X, BBox3DGame.GetCorners()[7].Y, BBox3DGame.GetCorners()[7].Z)));
+            //WorldToScreenRel(p, Vector2)
+            GTAData.WorldToScreenRel(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), out FUR);
+            GTAData.WorldToScreenRel(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), out FUL);
+            GTAData.WorldToScreenRel(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), out BUL);
+            GTAData.WorldToScreenRel(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), out BUR);
+            GTAData.WorldToScreenRel(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), out FLR);
+            GTAData.WorldToScreenRel(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), out FLL);
+            GTAData.WorldToScreenRel(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), out BLL);
+            GTAData.WorldToScreenRel(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), out BLR);
 
-            Vector3 RightV = e.RightVector;
-            Vector3 ForwardV = e.ForwardVector;
-            Vector3 UpV = e.UpVector;
-
-            RightVector = new GTAVector(RightV);
-            ForwardVector = new GTAVector(ForwardV);
-            UpVector = new GTAVector(UpV);
-
-            FURGame = new GTAVector(Pos.X + (Dim.X / 2) * RightVector.X + (Dim.Y / 2) * ForwardVector.X + (Dim.Z / 2) * UpVector.X, Pos.Y + (Dim.X / 2) * RightVector.Y + (Dim.Y / 2) * ForwardVector.Y + (Dim.Z / 2) * UpVector.Y, Pos.Z + (Dim.X / 2) * RightVector.Z + (Dim.Y / 2) * ForwardVector.Z + (Dim.Z / 2) * UpVector.Z);
-            //FURGame.X = Pos.X + (Dim.X / 2) * RightVector.X + (Dim.Y / 2) * ForwardVector.X + (Dim.Z / 2) * UpVector.X;
-            //FURGame.Y = Pos.Y + (Dim.X / 2) * RightVector.Y + (Dim.Y / 2) * ForwardVector.Y + (Dim.Z / 2) * UpVector.Y;
-            //FURGame.Z = Pos.Z + (Dim.X / 2) * RightVector.Z + (Dim.Y / 2) * ForwardVector.Z + (Dim.Z / 2) * UpVector.Z;
-
-            BLLGame = new GTAVector(Pos.X - (Dim.X / 2) * RightVector.X - (Dim.Y / 2) * ForwardVector.X - (Dim.Z / 2) * UpVector.X, Pos.Y - (Dim.X / 2) * RightVector.Y - (Dim.Y / 2) * ForwardVector.Y - (Dim.Z / 2) * UpVector.Y, Pos.Z - (Dim.X / 2) * RightVector.Z - (Dim.Y / 2) * ForwardVector.Z - (Dim.Z / 2) * UpVector.Z);
-            //BLLGame.X = Pos.X - (Dim.X / 2) * RightVector.X - (Dim.Y / 2) * ForwardVector.X - (Dim.Z / 2) * UpVector.X;
-            //BLLGame.Y = Pos.Y - (Dim.X / 2) * RightVector.Y - (Dim.Y / 2) * ForwardVector.Y - (Dim.Z / 2) * UpVector.Y;
-            //BLLGame.Z = Pos.Z - (Dim.X / 2) * RightVector.Z - (Dim.Y / 2) * ForwardVector.Z - (Dim.Z / 2) * UpVector.Z;
-
-            GTAVector dummy = new GTAVector(Dim.X * RightV);
-            FULGame = new GTAVector(FURGame.X - dummy.X, FURGame.Y - dummy.Y, FURGame.Z - dummy.Z);
-
-            dummy = new GTAVector(Dim.Y * Vector3.Cross(UpV, RightV));
-            BURGame = new GTAVector(FURGame.X - dummy.X, FURGame.Y - dummy.Y, FURGame.Z - dummy.Z);
-
-            dummy = new GTAVector(Dim.X * RightV);
-            BULGame = new GTAVector(BURGame.X - dummy.X, BURGame.Y - dummy.Y, BURGame.Z - dummy.Z);
-
-            dummy = new GTAVector(Dim.X * RightV);
-            BLRGame = new GTAVector(BLLGame.X + dummy.X, BLLGame.Y + dummy.Y, BLLGame.Z + dummy.Z);
-
-            dummy = new GTAVector(Dim.Y * Vector3.Cross(UpV, RightV));
-            FLLGame = new GTAVector(BLLGame.X + dummy.X, BLLGame.Y + dummy.Y, BLLGame.Z + dummy.Z);
-
-            dummy = new GTAVector(Dim.X * RightV);
-            FLRGame = new GTAVector(FLLGame.X + dummy.X, FLLGame.Y + dummy.Y, FLLGame.Z + dummy.Z);
-
-            GroundHeight1 = World.GetGroundHeight(new Vector3(FURGame.X, FURGame.Y, FURGame.Z));
-            GroundHeight2 = World.GetGroundHeight(new Vector3(FULGame.X, FULGame.Y, FULGame.Z));
-            GroundHeight3 = World.GetGroundHeight(new Vector3(BULGame.X, BULGame.Y, BULGame.Z));
-            GroundHeight4 = World.GetGroundHeight(new Vector3(BURGame.X, BURGame.Y, BURGame.Z));
-            GroundHeight5 = World.GetGroundHeight(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z));
-            GroundHeight6 = World.GetGroundHeight(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z));
-            GroundHeight7 = World.GetGroundHeight(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z));
-            GroundHeight8 = World.GetGroundHeight(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z));
-
-            FLRGame.Z = FLRGame.Z - (FLRGame.Z - GroundHeight5);
-            FLLGame.Z = FLLGame.Z - (FLLGame.Z - GroundHeight6);
-            BLLGame.Z = BLLGame.Z - (BLLGame.Z - GroundHeight7);
-            BLRGame.Z = BLRGame.Z - (BLRGame.Z - GroundHeight8);
-
-            FUR = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
-            FUL = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
-            BUL = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
-            BUR = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
-            FLR = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
-            FLL = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
-            BLL = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
-            BLR = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
+            //FUR = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
+            //FUL = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
+            //BUL = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
+            //BUR = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
+            //FLR = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
+            //FLL = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
+            //BLL = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
+            //BLR = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
 
             Visibility = GTAData.visibleOnScreen(new GTAVector[] { FURGame, BLLGame, FULGame, BURGame, BULGame, BLRGame, FLLGame, FLRGame }, e, CamPos);
             //Visibility = GTAData.CheckVisible(e);
@@ -454,6 +391,35 @@ namespace GTAVisionUtils
             return d;
         }
 
+        public static bool WorldToScreenRel(Vector3 entityPosition, out GTAVector2 screenCoords)
+        {
+            var mView = CameraHelper.GetCameraMatrix();
+            mView.Transpose();
+
+            var vForward = mView.Row4;
+            var vRight = mView.Row2;
+            var vUpward = mView.Row3;
+
+            var result = new Vector3(0, 0, 0);
+            result.Z = (vForward.X * entityPosition.X) + (vForward.Y * entityPosition.Y) + (vForward.Z * entityPosition.Z) + vForward.W;
+            result.X = (vRight.X * entityPosition.X) + (vRight.Y * entityPosition.Y) + (vRight.Z * entityPosition.Z) + vRight.W;
+            result.Y = (vUpward.X * entityPosition.X) + (vUpward.Y * entityPosition.Y) + (vUpward.Z * entityPosition.Z) + vUpward.W;
+
+            if (result.Z < 0.001f)
+            {
+                screenCoords = new GTAVector2(0, 0);
+                return false;
+            }
+
+            float invw = 1.0f / result.Z;
+            result.X *= invw;
+            result.Y *= invw;
+
+            screenCoords =  new GTAVector2((int)(UI.WIDTH * 0.5f + result.X * UI.WIDTH * 0.5f), (int)(UI.HEIGHT * 0.5f - result.Y * UI.HEIGHT * 0.5f));
+            //screenCoords = new Vector2(result.X, -result.Y);
+            return true;
+        }
+
         public static GTABoundingBox2 ComputeBoundingBox(Entity e, Vector3 offset, float scale = 0.5f)
         {
             
@@ -560,15 +526,19 @@ namespace GTAVisionUtils
                 }
             }
 
-            if(Vector3.Distance(f, e.Position) < 15f & cnt > 1)
+            if(Vector3.Distance(f, e.Position) < 15f & cnt > 0)
             {
                 return true;
             }
-            else if (Vector3.Distance(f, e.Position) < 50f & cnt > 2)
+            else if (Vector3.Distance(f, e.Position) < 50f & cnt > 1)
             {
                 return true;
             }
-            else if (Vector3.Distance(f, e.Position) < 100f & cnt > 4)
+            else if (Vector3.Distance(f, e.Position) < 100f & cnt > 2)
+            {
+                return true;
+            }
+            else if (Vector3.Distance(f, e.Position) < 150f & cnt > 3)
             {
                 return true;
             }

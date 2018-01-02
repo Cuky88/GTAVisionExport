@@ -23,6 +23,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -78,8 +79,9 @@
       <HintPath>..\packages\GDAL.1.11.1\lib\net40\osr_csharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="ScriptHookVDotNet2">
-      <HintPath>..\GTAVisionExport\ScriptHookVDotNet2.dll</HintPath>
+    <Reference Include="ScriptHookVDotNet2, Version=2.10.2.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Mods_Archive\ScriptHookVDotNet\ScriptHookVDotNet2.dll</HintPath>
     </Reference>
     <Reference Include="SharpDX, Version=3.1.1.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1, processorArchitecture=MSIL">
       <HintPath>..\packages\SharpDX.3.1.1\lib\net45\SharpDX.dll</HintPath>
@@ -117,12 +119,18 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CameraHelper.cs" />
     <Compile Include="ConfigUtils.cs" />
     <Compile Include="GdalConfiguration.cs" />
     <Compile Include="GTADataStructures.cs" />
     <Compile Include="HashFunctions.cs" />
     <Compile Include="ImageUtils.cs" />
     <Compile Include="InstanceData.cs" />
+    <Compile Include="Math\GameMath.cs" />
+    <Compile Include="Math\MathUtil.cs" />
+    <Compile Include="Math\Matrix.cs" />
+    <Compile Include="SigScan.cs" />
+    <Compile Include="Math\Vector4.cs" />
     <Compile Include="NativeInterop.cs" />
     <Compile Include="PostgresExport.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -146,7 +154,7 @@
     <Error Condition="!Exists('..\packages\VVVV.FreeImage.3.15.1.1\build\net40\VVVV.FreeImage.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\VVVV.FreeImage.3.15.1.1\build\net40\VVVV.FreeImage.targets'))" />
   </Target>
   <PropertyGroup>
-    <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files\Rockstar Games\Grand Theft Auto V\scripts"</PostBuildEvent>
+    <PostBuildEvent>COPY "$(TargetPath)" "C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto V\scripts"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
