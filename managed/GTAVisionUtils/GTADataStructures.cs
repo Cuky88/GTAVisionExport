@@ -146,24 +146,25 @@ namespace GTAVisionUtils
             BLLGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[6].X, BBox3DGame.GetCorners()[6].Y, BBox3DGame.GetCorners()[6].Z)));
             BLRGame = new GTAVector(e.GetOffsetInWorldCoords(new Vector3(BBox3DGame.GetCorners()[7].X, BBox3DGame.GetCorners()[7].Y, BBox3DGame.GetCorners()[7].Z)));
 
-            //WorldToScreenRel(p, Vector2)
-            GTAData.WorldToScreenRel(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), out FUR);
-            GTAData.WorldToScreenRel(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), out FUL);
-            GTAData.WorldToScreenRel(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), out BUL);
-            GTAData.WorldToScreenRel(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), out BUR);
-            GTAData.WorldToScreenRel(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), out FLR);
-            GTAData.WorldToScreenRel(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), out FLL);
-            GTAData.WorldToScreenRel(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), out BLL);
-            GTAData.WorldToScreenRel(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), out BLR);
+            // Solution with getting camera matrix from memory; but projection is not good!
+            //GTAData.WorldToScreenRel(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), out FUR);
+            //GTAData.WorldToScreenRel(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), out FUL);
+            //GTAData.WorldToScreenRel(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), out BUL);
+            //GTAData.WorldToScreenRel(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), out BUR);
+            //GTAData.WorldToScreenRel(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), out FLR);
+            //GTAData.WorldToScreenRel(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), out FLL);
+            //GTAData.WorldToScreenRel(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), out BLL);
+            //GTAData.WorldToScreenRel(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), out BLR);
 
-            //FUR = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
-            //FUL = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
-            //BUL = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
-            //BUR = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
-            //FLR = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
-            //FLL = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
-            //BLL = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
-            //BLR = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
+            // Better use this 3Dto2D Transformation; but it is outsourced into python to save performance - unfortunately python does something weired, so we use this code
+            FUR = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
+            FUL = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
+            BUL = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
+            BUR = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
+            FLR = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
+            FLL = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
+            BLL = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
+            BLR = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
 
             Visibility = GTAData.visibleOnScreen(new GTAVector[] { FURGame, BLLGame, FULGame, BURGame, BULGame, BLRGame, FLLGame, FLRGame }, e, CamPos);
             //Visibility = GTAData.CheckVisible(e);
@@ -276,12 +277,7 @@ namespace GTAVisionUtils
 
         public static Vector2 scalePoints(Vector2 p, int ImageWidth, int ImageHeight)
         {
-            // Arthur
             return new Vector2((int)(ImageWidth / (1.0 * UI.WIDTH) * p.X), (int)(ImageHeight / (1.0 * UI.HEIGHT) * p.Y));
-            // Mem lookup: http://gtaforums.com/topic/842182-world-to-screen-lag/; 3DBB passt, 2DBB ist falsch!!!
-            // return new Vector2((int)(UI.WIDTH * 0.5f + p.X * UI.WIDTH * 0.5f), (int)(UI.HEIGHT * 0.5f + p.Y * UI.HEIGHT * 0.5f));
-            // Test
-            //return new Vector2((int)(p.X * UI.WIDTH), (int)(p.Y * UI.HEIGHT));
         }
 
         public static GTAVector2 get2Dfrom3D(Vector3 a, int ImageWidth, int ImageHeight)
@@ -332,6 +328,7 @@ namespace GTAVisionUtils
 
             Vector2 screenScale = scalePoints(new Vector2(screenX, screenY), ImageWidth, ImageHeight);
 
+            // This part is for saving all the transformation steps to a txt for debugging
             /*
             string path = @"D:\Devel\GTAVisionExport\managed\Data\transformation.txt";
             if (!File.Exists(path))
@@ -560,7 +557,7 @@ namespace GTAVisionUtils
                 //var ppos = GameplayCamera.Position;
                 var ppos = World.RenderingCamera.Position;
                 Vector3 h = World.Raycast(ppos, e.Position, IntersectOptions.Everything).HitCoords;
-                var isLOS = Function.Call<bool>((GTA.Native.Hash)0x0267D00AF114F17A, Game.Player.Character, e);
+                var isLOS = HashFunctions.LOS(Game.Player.Character, e);
 
                 if ((h - ppos).Length() < (e.Position + (e.Model.GetDimensions().Y/2) * Vector3.Cross(e.UpVector, e.RightVector) - ppos).Length())
                 {

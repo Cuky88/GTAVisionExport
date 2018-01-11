@@ -119,17 +119,28 @@ def convertToCamCord(pList, Camrot, Campos, camNearClip, camFOV, imgw, imgh, uiw
         #print("Yscale: %s"%str(Yscale))
 
         pListProj.append((int(Xscale), int(Yscale)))
+
+    # Order of 3d bb points
+    #FURGame - 0
+    #FULGame - 1
+    #BULGame - 2
+    #BURGame - 3
+    #FLLGame - 4
+    #BLLGame - 5
+    #BLRGame - 6
+    #FLRGame - 7
     
+    # Check if the 2d bb points are within image dimensions
     minX = sys.maxint
     minY = sys.maxint
     maxX = 0
     maxY = 0
     
-    i = 0
+    # Check if a corner of 3d bb lies outside image dim; 2d bb has to be adjusted not to include this corner when calculating its dimensions
     pOut = list()
-    for p in pListProj:
-        if p[0] < 0 or p[1] < 0:
-            i += 1
+    for i, p in enumerate(pListProj):
+        if p[0] < 0 or p[1] < 0 or p[0] > uiw or p[1] > uih:
+            #pOut.append({i:p})
             pOut.append(p)
             continue
         
@@ -140,7 +151,7 @@ def convertToCamCord(pList, Camrot, Campos, camNearClip, camFOV, imgw, imgh, uiw
     
     if minX < 0: minX = 0
     if minY < 0: minY = 0
-
+    print(pOut)
     for o in pOut:
         if o[0] < 0:
             minX = 0
@@ -155,6 +166,11 @@ def convertToCamCord(pList, Camrot, Campos, camNearClip, camFOV, imgw, imgh, uiw
     if maxY > uih: maxY = uih
     
     pListBB.append([(int(minX), int(minY)), (int(maxX), int(maxY))])
+    
+    # Filter Boxes which are as wide as the image - 10%
+    if maxX - minX > uiw - uiw* 0.1:
+        return [], []
+    
     return pListProj, pListBB
 
 def bbox_from_string(name):
@@ -164,7 +180,7 @@ def bbox_from_string(name):
         if d['Image'] == name:
             print( d['Campos'])
             for i,p in enumerate(d['Detections']):
-                if p["Type"] == "car" and p["Visibility"]:
+                if p["Type"] == "car" and p["Visibility"] == True:
                     pList = list()
                     pList.append(np.array([p["FURGame"]["X"],p["FURGame"]["Y"],p["FURGame"]["Z"]]))
                     pList.append(np.array([p["FULGame"]["X"],p["FULGame"]["Y"],p["FULGame"]["Z"]]))
@@ -347,11 +363,14 @@ def main2():
                 if img == None: print("Image %s not found!"%('D:\\Devel\\GTAVisionExport\\managed\\Data\\' + name)); break
 
                 for i,p in enumerate(d['Detections']):
-                    if p["Type"] == "car" and p["Visibility"]:
+                    if p["Type"] == "car" and p["Visibility"] == True:
                         
                         #print((p["FUR"]["X"],p["FUR"]["Y"]), (p["FUL"]["X"],p["FUL"]["Y"]), (p["BUL"]["X"],p["BUL"]["Y"]), (p["BUR"]["X"],p["BUR"]["Y"]), 
                         #(p["FLL"]["X"],p["FLL"]["Y"]), (p["BLL"]["X"],p["BLL"]["Y"]), (p["BLR"]["X"],p["BLR"]["Y"]), (p["FLR"]["X"],p["FLR"]["Y"]))
                         
+                        if p["FURGame"]["Y"] < p["FLRGame"]["Y"] or p["BURGame"]["Y"] < p["BLRGame"]["Y"]:
+                            pass#continue
+
                         pList = list()
                         pList.append(np.array([p["FURGame"]["X"],p["FURGame"]["Y"],p["FURGame"]["Z"]]))
                         pList.append(np.array([p["FULGame"]["X"],p["FULGame"]["Y"],p["FULGame"]["Z"]]))
@@ -364,50 +383,51 @@ def main2():
 
                         BB3D, BB2D = convertToCamCord(pList, d['Camrot'], d['Campos'], d['CamNearClip'], d['CamFOV'], d['ImageWidth'], d['ImageHeight'], d['UIwidth'], d['UIheight'])
                         
-                        print("\n2D Bounding Boxes:")
-                        print(BB2D)
+                        #print("\n2D Bounding Boxes:")
+                        #print(BB2D)
                         print("\n3D Bounding Boxes:")
                         print(BB3D)
                         print("-------------------")
+                        
+                        if BB3D:
+                            if int(sys.argv[1]) == 2:
+                                for bb in BB2D:
+                                    img = cv2.rectangle(img, bb[0], bb[1], (255, 255, 0), 1)
 
-                        if int(sys.argv[1]) == 2:
-                            for bb in BB2D:
-                                img = cv2.rectangle(img, bb[0], bb[1], (255, 255, 0), 1)
+                            elif int(sys.argv[1]) == 3:
+                                img = cv2.line(img, BB3D[0], BB3D[1], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[1], BB3D[2], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[2], BB3D[3], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[3], BB3D[0], (255, 0, 255), 1)
 
-                        elif int(sys.argv[1]) == 3:
-                            img = cv2.line(img, BB3D[0], BB3D[1], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[1], BB3D[2], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[2], BB3D[3], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[3], BB3D[0], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[4], BB3D[5], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[5], BB3D[6], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[6], BB3D[7], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[7], BB3D[4], (255, 0, 255), 1)
 
-                            img = cv2.line(img, BB3D[4], BB3D[5], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[5], BB3D[6], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[6], BB3D[7], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[7], BB3D[4], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[0], BB3D[7], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[1], BB3D[4], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[2], BB3D[5], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[3], BB3D[6], (255, 0, 255), 1)
 
-                            img = cv2.line(img, BB3D[0], BB3D[7], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[1], BB3D[4], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[2], BB3D[5], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[3], BB3D[6], (255, 0, 255), 1)
+                            elif int(sys.argv[1]) == 1:
+                                for bb in BB2D:
+                                    img = cv2.rectangle(img, bb[0], bb[1], (255, 255, 0), 1)
 
-                        elif int(sys.argv[1]) == 4:
-                            for bb in BB2D:
-                                img = cv2.rectangle(img, bb[0], bb[1], (255, 255, 0), 1)
+                                img = cv2.line(img, BB3D[0], BB3D[1], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[1], BB3D[2], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[2], BB3D[3], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[3], BB3D[0], (255, 0, 255), 1)
 
-                            img = cv2.line(img, BB3D[0], BB3D[1], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[1], BB3D[2], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[2], BB3D[3], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[3], BB3D[0], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[4], BB3D[5], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[5], BB3D[6], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[6], BB3D[7], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[7], BB3D[4], (255, 0, 255), 1)
 
-                            img = cv2.line(img, BB3D[4], BB3D[5], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[5], BB3D[6], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[6], BB3D[7], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[7], BB3D[4], (255, 0, 255), 1)
-
-                            img = cv2.line(img, BB3D[0], BB3D[7], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[1], BB3D[4], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[2], BB3D[5], (255, 0, 255), 1)
-                            img = cv2.line(img, BB3D[3], BB3D[6], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[0], BB3D[7], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[1], BB3D[4], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[2], BB3D[5], (255, 0, 255), 1)
+                                img = cv2.line(img, BB3D[3], BB3D[6], (255, 0, 255), 1)
                         
                         #img = cv2.line(img, (int(p["FUR"]["X"]),int(p["FUR"]["Y"])), (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (255, 0, 255), 1)
                         #img = cv2.line(img, (int(p["FUL"]["X"]),int(p["FUL"]["Y"])), (int(p["BUL"]["X"]),int(p["BUL"]["Y"])), (255, 0, 255), 1)

@@ -100,8 +100,34 @@ namespace GTAVisionExport
             //outStream = File.CreateText(outputPath);
             this.Tick += new EventHandler(this.OnTick);
             this.KeyDown += OnKeyDown;
-
             Interval = 0;
+
+            while (player.Exists() == false)
+            {
+                Script.Wait(0);
+            }
+
+            // Activate Trainer
+            player.IsInvincible = true;
+            player.WantedLevel = 0;
+            player.IgnoredByEveryone = true;
+            player.IgnoredByPolice = true;
+            player.SetSwimSpeedMultThisFrame(1.49f);
+            player.SetRunSpeedMultThisFrame(1.49f);
+            player.SetSuperJumpThisFrame();
+            //PED_FLAG_CAN_FLY_THRU_WINDSCREEN
+            HashFunctions.SetPedConfigFlag(Game.Player.Character, 32, false);
+            //_PED_SWITCHING_WEAPON
+            HashFunctions.SetPedConfigFlag(Game.Player.Character, 331, false);
+            HashFunctions.SpecialAbilityFillMeter(player, true);
+            HashFunctions.SetPlayerNoiseMultiplier(player, false);
+            HashFunctions.SetCreateRandomCops(false);
+            HashFunctions.SetRandomBoats(false);
+            HashFunctions.SetRandomTrains(false);
+            HashFunctions.SetGarbageTrucks(false);
+            World.CurrentDayTime = new TimeSpan(13, 0, 0);
+            Game.PauseClock(true);
+            World.WeatherTransition = 0;
         }
 
         public void OnTick(object o, EventArgs e)
@@ -169,11 +195,11 @@ namespace GTAVisionExport
             //UI.Notify("x = " + player.Position.X + "y = " + player.Position.Y + "z = " + player.Position.Z);
             // no need to release the autodrive here
             // delete all surrounding vehicles & the driver's car
-            Function.Call(GTA.Native.Hash.CLEAR_AREA_OF_VEHICLES, player.Position.X, player.Position.Y, player.Position.Z, 1000f, false, false, false, false);
+            HashFunctions.ClearAreaOfVehicle(player.Position, 1000f, false, false, false, false);
             player.LastVehicle.Delete();
             // teleport to the spawning position, defined in GameUtils.cs, subject to changes
             player.Position = GTAConst.StartPos;
-            Function.Call(GTA.Native.Hash.CLEAR_AREA_OF_VEHICLES, player.Position.X, player.Position.Y, player.Position.Z, 100f, false, false, false, false);
+            HashFunctions.ClearAreaOfVehicle(player.Position, 100f, false, false, false, false);
             // start a new run
             EnterVehicle();
             //Script.Wait(2000);

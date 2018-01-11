@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using GTA;
 using GTA.Math;
 using GTA.Native;
 
@@ -47,6 +48,85 @@ namespace GTAVisionUtils
                 (int)r, (int)g, (int)b, (int)a
             });
         }
-        
+
+        public static void ClearAreaOfVehicle(Vector3 pos, float distance, bool p1, bool p2, bool p3, bool p4)
+        {
+            Function.Call(GTA.Native.Hash.CLEAR_AREA_OF_VEHICLES, new InputArgument[] {
+                pos.X,
+                pos.Y,
+                pos.Z,
+                distance,
+                p1,
+                p2,
+                p3,
+                p4
+            });
+        }
+
+        public static bool LOS(Ped ped, Entity e)
+        {
+            return Function.Call<bool>((GTA.Native.Hash)0x0267D00AF114F17A, ped, e);
+        }
+
+        public static void SpecialAbilityFillMeter(Player player, bool p1)
+        {
+            Function.Call(Hash.SPECIAL_ABILITY_FILL_METER, new InputArgument[]
+            {
+                player,
+                p1
+            });
+        }
+
+        public static void SetPlayerNoiseMultiplier(Player player, bool p1)
+        {
+            Function.Call(Hash.SET_PLAYER_NOISE_MULTIPLIER, new InputArgument[]
+            {
+                player,
+                p1
+            });
+        }
+
+        public static void SetPedConfigFlag(Ped ped, int flagId, bool p1)
+        {
+            Function.Call(Hash.SET_PED_CONFIG_FLAG, new InputArgument[]
+            {
+                ped,
+                flagId,
+                p1
+            });
+        }
+
+        public static void SetCreateRandomCops(bool p1)
+        {
+            Function.Call(Hash.SET_CREATE_RANDOM_COPS, new InputArgument[]
+            {
+                p1
+            });
+        }
+
+        public static void SetRandomTrains(bool p1)
+        {
+            Function.Call(Hash.SET_RANDOM_TRAINS, new InputArgument[]
+            {
+                p1
+            });
+        }
+
+        public static void SetRandomBoats(bool p1)
+        {
+            Function.Call(Hash.SET_RANDOM_BOATS, new InputArgument[]
+            {
+                p1
+            });
+        }
+
+        public static void SetGarbageTrucks(bool p1)
+        {
+            Function.Call(Hash.SET_GARBAGE_TRUCKS, new InputArgument[]
+            {
+                p1
+            });
+        }
+
     }
 }
