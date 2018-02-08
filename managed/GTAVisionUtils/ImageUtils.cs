@@ -11,46 +11,10 @@ namespace GTAVisionUtils {
 
     public class ImageUtils
     {
-        private static Task imageTask;
-        private static byte[] lastCapturedBytes;
-
-        public static byte[] getLastCapturedFrame()
-        {
-            WaitForProcessing();
-            return lastCapturedBytes;
-        }
-        public static void WaitForProcessing()
-        {
-            if (imageTask == null) return;
-            imageTask.Wait();
-        }
-
-        public static void StartUploadTask(ZipArchive archive, string name, int w, int h,
-            List<byte[]> colors, byte[] depth, byte[] stencil)
-        {
-            WaitForProcessing();
-            imageTask = Task.Run(() => UploadToArchive(archive, name, w, h, colors, depth, stencil));
-        } 
-        public static void UploadToArchive(ZipArchive archive, string name, int w, int h,
-            List<byte[]> colors, byte[] depth, byte[] stencil)
-        {
-            var memstream = new MemoryStream();
-            WriteToTiff(name, w, h, colors, depth, stencil);
-
-            var entry = archive.CreateEntry(name + ".tiff", CompressionLevel.NoCompression);
-            var entryStream = entry.Open();
-            lastCapturedBytes = memstream.ToArray();
-            entryStream.Write(lastCapturedBytes, 0, lastCapturedBytes.Length);
-            entryStream.Close();
-            //tiff.Close();
-            memstream.Close();
-
-        }
-
         public static void WriteToTiff(string name, int width, int height, List<byte[]> colors, byte[] depth, byte[] stencil)
         {
             var t = Tiff.Open(name + ".tiff", "w");
-            var pages = colors.Count + 2;
+            var pages = colors.Count;
             var page = 0;
             foreach (var color in colors)
             {

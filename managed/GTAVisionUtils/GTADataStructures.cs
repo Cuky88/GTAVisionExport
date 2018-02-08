@@ -8,15 +8,10 @@ using MathNet.Numerics.LinearAlgebra;
 using Vector2 = GTA.Math.Vector2;
 using Vector3 = GTA.Math.Vector3;
 using SharpDX;
+using System.IO;
 
 namespace GTAVisionUtils
 {
-    public class GTARun
-    {
-        public Guid guid { get; set; }
-        public string archiveKey { get; set; }
-    }
-
     public class GTABoundingBox2
     {
         public GTAVector2 Min { get; set; }
@@ -25,28 +20,6 @@ namespace GTAVisionUtils
             get {
                 return (Max.X - Min.X) * (Max.Y - Min.Y);
             }
-        }
-    }
-
-    public class GTAVehicle
-    {
-        public GTAVector Pos { get; set; }
-        public GTABoundingBox2 BBox { get; set; }
-
-        public GTAVehicle(Vehicle v)
-        {
-            Pos = new GTAVector(v.Position);
-            BBox = GTAData.ComputeBoundingBox(v, v.Position);
-        }
-    }
-
-    public class GTAPed {
-        public GTAVector Pos { get; set; }
-        public GTABoundingBox2 BBox { get; set; }
-        public GTAPed(Ped p)
-        {
-            Pos = new GTAVector(p.Position);
-            BBox = GTAData.ComputeBoundingBox(p, p.Position);
         }
     }
 
@@ -93,22 +66,22 @@ namespace GTAVisionUtils
         public float Distance { get; set; }
         public float Speed { get; set; }
         public float Wheel { get; set; }
-        public int HashCode { get; set; }
-        //public int ImageWidth { get; set; }
-        //public int ImageHeight { get; set; }
         public bool Visibility { get; set; }
+        public int DistCat { get; set; }
         public string NumberPlate { get; set; }
         // public GTABoundingBox2 BBox { get; set; }
         // public BoundingBox BBox3D { get; set; }
         public int Handle { get; set; }
-        public GTAVector2 FUR;
-        public GTAVector2 FUL;
-        public GTAVector2 BUL;
-        public GTAVector2 BUR;
-        public GTAVector2 FLR;
-        public GTAVector2 FLL;
-        public GTAVector2 BLL;
-        public GTAVector2 BLR;
+        //public GTAVector2 FUR;
+        //public GTAVector2 FUL;
+        //public GTAVector2 BUL;
+        //public GTAVector2 BUR;
+        //public GTAVector2 FLR;
+        //public GTAVector2 FLL;
+        //public GTAVector2 BLL;
+        //public GTAVector2 BLR;
+        //public GTAVector2 BBmin;
+        //public GTAVector2 BBmax;
         public GTAVector FURGame;
         public GTAVector FULGame;
         public GTAVector BULGame;
@@ -123,11 +96,9 @@ namespace GTAVisionUtils
             Type = type.ToString();
             Pos = new GTAVector(e.Position);
             Distance = Game.Player.Character.Position.DistanceTo(new Vector3(Pos.X, Pos.Y, Pos.Z));
-            
-            // BBox = GTAData.ComputeBoundingBox(e, e.Position);
 
+            //Unique identifier
             Handle = e.Handle;
-            HashCode = e.GetHashCode();
 
             Rot = new GTAVector(e.Rotation);
             cls = "Unknown";
@@ -156,18 +127,50 @@ namespace GTAVisionUtils
             //GTAData.WorldToScreenRel(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), out BLL);
             //GTAData.WorldToScreenRel(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), out BLR);
 
-            // Better use this 3Dto2D Transformation; but it is outsourced into python to save performance - unfortunately python does something weired, so we use this code
-            FUR = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
-            FUL = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
-            BUL = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
-            BUR = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
-            FLR = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
-            FLL = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
-            BLL = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
-            BLR = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
+            //Vector2 FURtmp = new Vector2(FUR.X, FUR.Y);
+            //Vector2 FULtmp = new Vector2(FUL.X, FUL.Y);
+            //Vector2 BULtmp = new Vector2(BUL.X, BUL.Y);
+            //Vector2 BURtmp = new Vector2(BUR.X, BUR.Y);
+            //Vector2 FLRtmp = new Vector2(FLR.X, FLR.Y);
+            //Vector2 FLLtmp = new Vector2(FLL.X, FLL.Y);
+            //Vector2 BLLtmp = new Vector2(BLL.X, BLL.Y);
+            //Vector2 BLRtmp = new Vector2(BLR.X, BLR.Y);
 
-            Visibility = GTAData.visibleOnScreen(new GTAVector[] { FURGame, BLLGame, FULGame, BURGame, BULGame, BLRGame, FLLGame, FLRGame }, e, CamPos);
-            //Visibility = GTAData.CheckVisible(e);
+            //// Calculate dimension of 2d bb
+            //Vector2[] bb = GTAData.BB2D(new Vector2[]{ FURtmp, FULtmp, BULtmp, BURtmp, FLRtmp, FLLtmp, BLLtmp, BLRtmp });
+            //BBmin = new GTAVector2(bb[0].X, bb[0].Y);
+            //BBmax = new GTAVector2(bb[1].X, bb[1].Y);
+
+            // Better use this 3Dto2D Transformation; but it is outsourced into python to save performance - unfortunately python does something weired, so we use this code
+            Vector2 FURtmp = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
+            Vector2 FULtmp = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
+            Vector2 BULtmp = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
+            Vector2 BURtmp = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
+            Vector2 FLRtmp = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
+            Vector2 FLLtmp = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
+            Vector2 BLLtmp = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
+            Vector2 BLRtmp = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
+
+            //Calculate dimension of 2d bb
+            //Vector2[] bb = GTAData.BB2D(new Vector2[] { FURtmp, FULtmp, BULtmp, BURtmp, FLRtmp, FLLtmp, BLLtmp, BLRtmp });
+
+            // Scale points to img coords
+            //FUR = GTAData.scalePoints(new Vector2(FURtmp.X, FURtmp.Y), ImgW, ImgH);
+            //FUL = GTAData.scalePoints(new Vector2(FULtmp.X, FULtmp.Y), ImgW, ImgH);
+            //BUL = GTAData.scalePoints(new Vector2(BULtmp.X, BULtmp.Y), ImgW, ImgH);
+            //BUR = GTAData.scalePoints(new Vector2(BURtmp.X, BURtmp.Y), ImgW, ImgH);
+            //FLR = GTAData.scalePoints(new Vector2(FLRtmp.X, FLRtmp.Y), ImgW, ImgH);
+            //FLL = GTAData.scalePoints(new Vector2(FLLtmp.X, FLLtmp.Y), ImgW, ImgH);
+            //BLL = GTAData.scalePoints(new Vector2(BLLtmp.X, BLLtmp.Y), ImgW, ImgH);
+            //BLR = GTAData.scalePoints(new Vector2(BLRtmp.X, BLRtmp.Y), ImgW, ImgH);
+            //BBmin = GTAData.scalePoints(new Vector2(bb[0].X, bb[0].Y), ImgW, ImgH);
+            //BBmax = GTAData.scalePoints(new Vector2(bb[1].X, bb[1].Y), ImgW, ImgH);
+
+            bool vis;
+            int cat;
+            GTAData.visibleOnScreen(new GTAVector[] { FURGame, BLLGame, FULGame, BURGame, BULGame, BLRGame, FLLGame, FLRGame }, e, CamPos, out vis, out cat);
+            Visibility = vis;
+            DistCat = cat;
 
             //World.DrawMarker(MarkerType.DebugSphere, FURGame, new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector3(.1f, .1f, .1f), System.Drawing.Color.Green);
             //World.DrawMarker(MarkerType.DebugSphere, FULGame, new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector3(.1f, .1f, .1f), System.Drawing.Color.Yellow);
@@ -252,6 +255,8 @@ namespace GTAVisionUtils
         public DateTime Timestamp { get; set; }
         public TimeSpan LocalTime { get; set; }
         public int GameTime { get; set; }
+        public float FrameTime { get; set; }
+        public float StepTime { get; set; }
         public Weather CurrentWeather { get; set; }
         public List<Weather> CapturedWeathers;
         public GTAVector CamPos { get; set; }
@@ -272,16 +277,84 @@ namespace GTAVisionUtils
 
         public static SharpDX.Vector3 CvtVec(GTA.Math.Vector3 inp) {
             return (SharpDX.Vector3)new GTAVector(inp);
-
         }
 
-        public static Vector2 scalePoints(Vector2 p, int ImageWidth, int ImageHeight)
+        public static Vector2[] BB2D(Vector2[] pts)
         {
-            return new Vector2((int)(ImageWidth / (1.0 * UI.WIDTH) * p.X), (int)(ImageHeight / (1.0 * UI.HEIGHT) * p.Y));
+            Vector2 Min = new Vector2(int.MaxValue, int.MaxValue);
+            Vector2 Max = new Vector2(0, 0);
+
+            foreach (Vector2 p in pts)
+            {
+                if (p.X < Min.X)
+                    Min.X = p.X;
+                if (p.X > Max.X)
+                    Max.X = p.X;
+                if (p.Y < Min.Y)
+                    Min.Y = p.Y;
+                if (p.Y > Max.Y)
+                    Max.Y = p.Y;
+            }
+
+            if (Min.X < 0)
+                Min.X = 0;
+            if (Min.Y < 0)
+                Min.Y = 0;
+
+            if (Max.X > UI.WIDTH)
+                Max.X = UI.WIDTH;
+            if (Max.Y > UI.HEIGHT)
+                Max.Y = UI.HEIGHT;
+
+            return new Vector2[] { Min, Max };
         }
 
-        public static GTAVector2 get2Dfrom3D(Vector3 a, int ImageWidth, int ImageHeight)
+        public static GTAVector2 scalePoints(Vector2 p, int ImageWidth, int ImageHeight)
         {
+            //return new GTAVector2((int)(p.X), (int)(p.Y));
+            //return new GTAVector2((int)(ImageWidth / (1.0 * UI.WIDTH) * p.X), (int)(ImageHeight / (1.0 * UI.HEIGHT) * p.Y));
+            return new GTAVector2(p.X, p.Y);
+        }
+    
+        public static float getDotVectorResult(Vector3 camPos, Vector3 corner, Vector3 camForward)
+        {            
+            Vector3 dir = (corner - camPos).Normalized;
+            float pos = Vector3.Dot(dir, camForward);
+
+            if (SettingsReader.DEBUG_TRANS)
+            {
+                // Create a file to write to.
+                using (StreamWriter file = File.AppendText(SettingsReader.DEBUG_PATH))
+                {
+                    file.WriteLine(corner.ToString() + "\t " + camPos.ToString() + "\t " + dir.ToString());
+                    file.WriteLine("dirNorm: " + dir.ToString() + "\t pos: " + pos.ToString());
+                }
+            }
+
+            if (pos >= 0)
+            {
+                // If vertices is in front of cam, the normalized distance will be printed
+                return pos;
+            }
+            else
+                // If vertices is behind of cam, -1 will be printed
+                return -1.0f;
+        }
+
+        public static Vector2 get2Dfrom3D(Vector3 a, int ImageWidth, int ImageHeight)
+        {
+            if (SettingsReader.DEBUG_TRANS)
+            {
+                if (!File.Exists(SettingsReader.DEBUG_PATH))
+                {
+                    // Create a file to write to.
+                    using (StreamWriter file = File.CreateText(SettingsReader.DEBUG_PATH))
+                    {
+                        file.WriteLine("All coordinates are in game space!");
+                        file.WriteLine("");
+                    }
+                }
+            }
             // http://orfe.princeton.edu/~alaink/SmartDrivingCars/Visitors/FilipowiczVideoGamesforAutonomousDriving.pdf
             // camera rotation 
             Vector3 theta = Vector3.Zero;
@@ -289,6 +362,15 @@ namespace GTAVisionUtils
 
             // camera direction, at 0 rotation the camera looks down the postive Y axis --> WorldNorth schaut somit immer in Cam-Richtung
             Vector3 camDir = rotate(Vector3.WorldNorth, theta);
+
+            float sign = 1f;
+            float scale = 1f;
+            if (getDotVectorResult(World.RenderingCamera.Position, a, camDir) == -1)
+            {
+                sign = -1f;
+                scale = 15f;
+                camDir = sign * rotate(Vector3.WorldNorth, theta);
+            }
 
             // camera position  == eigentlich Bildebene rotiert in Blickrichtung, minimal vor der Cam zu sehen
             Vector3 c = Vector3.Zero;
@@ -313,12 +395,13 @@ namespace GTAVisionUtils
             float ang = (float)System.Math.Acos((double)dot);
             // Senkrechter Abstand zur Bildebene
             float viewPlaneDist = World.RenderingCamera.NearClip / (float)System.Math.Cos((double)ang);
+            viewPlaneDist = viewPlaneDist * scale;
             // Punkt auf der Bildebene
-            Vector3 viewPlanePoint = viewPlaneDist * viewerDistNorm + e;
+            Vector3 viewPlanePointTMP = viewPlaneDist * viewerDistNorm + e;
 
             // move origin to upper left 
             Vector3 newOrigin = c + (viewWindowHeight / 2f) * camUp - (viewWindowWidth / 2f) * camEast;
-            viewPlanePoint = (viewPlanePoint + c) - newOrigin;
+            Vector3 viewPlanePoint = (viewPlanePointTMP + c) - newOrigin;
 
             float viewPlaneX = Vector3.Dot(viewPlanePoint, camEast) / Vector3.Dot(camEast, camEast);
             float viewPlaneZ = Vector3.Dot(viewPlanePoint, camUp) / Vector3.Dot(camUp, camUp);
@@ -326,54 +409,40 @@ namespace GTAVisionUtils
             float screenX = viewPlaneX / viewWindowWidth * UI.WIDTH;
             float screenY = -viewPlaneZ / viewWindowHeight * UI.HEIGHT;
 
-            Vector2 screenScale = scalePoints(new Vector2(screenX, screenY), ImageWidth, ImageHeight);
-
             // This part is for saving all the transformation steps to a txt for debugging
-            /*
-            string path = @"D:\Devel\GTAVisionExport\managed\Data\transformation.txt";
-            if (!File.Exists(path))
+
+            if (SettingsReader.DEBUG_TRANS)
             {
-                // Create a file to write to.
-                using (StreamWriter file = File.CreateText(path))
+                using (StreamWriter file = File.AppendText(SettingsReader.DEBUG_PATH))
                 {
-                    //file.WriteLine("File number " + FileCounter.ToString());
-                    //file.WriteLine("All coordinates are in game space!");
-                    //file.WriteLine("");
-                }
-            }
-            // Create a file to write to.
-            using (StreamWriter file = File.AppendText(path))
-                {
-                    file.WriteLine("Vector: " + a.ToString());
                     file.WriteLine("theta: " + theta.ToString());
                     file.WriteLine("camDir: " + camDir.ToString());
                     file.WriteLine("c: " + c.ToString());
                     file.WriteLine("e: " + e.ToString());
-                    file.WriteLine("viewWindowHeight: " + viewWindowHeight.ToString());
-                    file.WriteLine("viewWindowWidth: " + viewWindowWidth.ToString());
                     file.WriteLine("camUp: " + camUp.ToString());
                     file.WriteLine("camEast: " + camEast.ToString());
+                    file.WriteLine("viewWindowHeight: " + viewWindowHeight.ToString());
+                    file.WriteLine("viewWindowWidth: " + viewWindowWidth.ToString());
+                    file.WriteLine("newOrigin: " + newOrigin.ToString());
                     file.WriteLine("del: " + del.ToString());
                     file.WriteLine("viewerDist: " + viewerDist.ToString());
                     file.WriteLine("viewerDistNorm: " + viewerDistNorm.ToString());
                     file.WriteLine("dot: " + dot.ToString());
                     file.WriteLine("ang: " + ang.ToString());
                     file.WriteLine("viewPlaneDist: " + viewPlaneDist.ToString());
-                    file.WriteLine("viewPlanePoint: " + viewPlanePoint.ToString());
-                    file.WriteLine("newOrigin: " + newOrigin.ToString());
+                    file.WriteLine("viewPlanePointTMP: " + viewPlanePointTMP.ToString());
                     file.WriteLine("viewPlanePoint: " + viewPlanePoint.ToString());
                     file.WriteLine("viewPlaneX: " + viewPlaneX.ToString());
                     file.WriteLine("viewPlaneZ: " + viewPlaneZ.ToString());
                     file.WriteLine("screenX: " + screenX.ToString());
                     file.WriteLine("screenY: " + screenY.ToString());
-                    file.WriteLine("Xscale: " + screenScale.X.ToString());
-                    file.WriteLine("Yscale: " + screenScale.Y.ToString());
-
+                    file.WriteLine("########################################################");
                 }
-                */
+            }
+
 
             //return new Vector2((int)screenX, (int)screenY);
-            return new GTAVector2(screenScale.X, screenScale.Y);
+            return new Vector2(screenX, screenY);
         }
 
         public static Vector3 rotate(Vector3 a, Vector3 theta)
@@ -492,16 +561,13 @@ namespace GTAVisionUtils
             return rv;
         }
 
-        public static bool visibleOnScreen(GTAVector[] vertices, Entity e, GTAVector CamPos)
+        public static bool visibleOnScreen(GTAVector[] vertices, Entity e, GTAVector CamPos, out bool visibile, out int distCat)
         {
             //sw.Restart();
-            bool isOnScreen = false;
             int cnt = 0;
             Vector3 f = new Vector3(CamPos.X, CamPos.Y, CamPos.Z);
-            //UI.ShowSubtitle(World.RenderingCamera.Position.ToString() + "\n" + Game.Player.LastVehicle.Position.ToString(), 1000);
             foreach (GTAVector v in vertices)
             {
-                
                 Vector3 vec = new Vector3(v.X, v.Y, v.Z);
                 //UI.Notify(UI.WorldToScreen(vec).ToString());
                 if (UI.WorldToScreen(vec).X != 0 && UI.WorldToScreen(vec).Y != 0)
@@ -523,94 +589,103 @@ namespace GTAVisionUtils
                 }
             }
 
-            if(Vector3.Distance(f, e.Position) < 15f & cnt > 0)
+            if (Vector3.Distance(f, e.Position) < 15f & cnt > 0)
             {
+                distCat = 15;
+                visibile = true;
                 return true;
             }
             else if (Vector3.Distance(f, e.Position) < 50f & cnt > 1)
             {
+                distCat = 50;
+                visibile = true;
                 return true;
             }
-            else if (Vector3.Distance(f, e.Position) < 100f & cnt > 2)
+            else if (Vector3.Distance(f, e.Position) < 100f & cnt > 1)
             {
+                distCat = 100;
+                visibile = true;
                 return true;
             }
-            else if (Vector3.Distance(f, e.Position) < 150f & cnt > 3)
+            else if (Vector3.Distance(f, e.Position) < 150f & cnt > 2)
             {
+                distCat = 150;
+                visibile = true;
                 return true;
             }
             else
             {
+                distCat = 9999;
+                visibile = false;
                 return false;
             }
-
-            //UI.ShowSubtitle("IsVisible: " + sw.Elapsed, 1000);
-            //UI.ShowSubtitle(isOnScreen.ToString(), 500);
         }
 
-        public static bool CheckVisible(Entity e) {
-            //return true;
-            //var p = Game.Player.LastVehicle;
-
-            if (UI.WorldToScreen(e.Position).X != 0 && UI.WorldToScreen(e.Position).Y != 0)
-            {
-                //var ppos = GameplayCamera.Position;
-                var ppos = World.RenderingCamera.Position;
-                Vector3 h = World.Raycast(ppos, e.Position, IntersectOptions.Everything).HitCoords;
-                var isLOS = HashFunctions.LOS(Game.Player.Character, e);
-
-                if ((h - ppos).Length() < (e.Position + (e.Model.GetDimensions().Y/2) * Vector3.Cross(e.UpVector, e.RightVector) - ppos).Length())
-                {
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-
-                return isLOS;
-                //var ppos = GameplayCamera.Position;
-
-                //var res = World.Raycast(ppos, e.Position, IntersectOptions.Everything, Game.Player.Character.CurrentVehicle);
-                //HashFunctions.Draw3DLine(ppos, e.Position);
-                //UI.Notify("Camera: " + ppos.X + " Ent: " + e.Position.X);
-                //World.DrawMarker(MarkerType.HorizontalCircleSkinny_Arrow, p.Position, (e.Position - p.Position).Normalized, Vector3.Zero, new Vector3(1, 1, 1), System.Drawing.Color.Red);
-                //return res.HitEntity == e;
-                //if (res.HitCoords == null) return false;
-                //return e.IsInRangeOf(res.HitCoords, 10);
-                //return res.HitEntity == e;
-            }
-            return false;
-        }
-
-        public static GTAData DumpData(string imageName, List<Weather> capturedWeathers)
+        public static Vector3 RotationToDirection(Vector3 rotation)
         {
+            var z = 0.01745329f * rotation.Z;
+            var x = 0.01745329f * rotation.X;
+            var num = Math.Abs(Math.Cos(x));
+            return new Vector3
+            {
+                X = (float)(-Math.Sin(z) * num),
+                Y = (float)(Math.Cos(z) * num),
+                Z = (float)Math.Sin(x)
+            };
+        }
+
+        public static GTAData DumpData(List<Weather> capturedWeathers)
+        {
+            Ped playerPed = Game.Player.Character;
+            bool camActive;
+            bool camActive2;
+            Vector3 CamPos = World.RenderingCamera.Position;
+            Vector3 CamRot = World.RenderingCamera.Rotation;
+            if (!(World.RenderingCamera.Handle == -1))
+            {
+                if (playerPed.IsInVehicle())
+                {
+                    TestVehicle.TestVehicle.getActiveCam(out camActive);
+                    if (camActive)
+                        TestVehicle.TestVehicle.getCarMatrix(out CamPos, out CamRot);
+                }
+                else if (!(playerPed.IsInVehicle()))
+                {
+                    CamVision.CV.getActiveCam(out camActive2);
+                    if (camActive2)
+                    {
+                        CamPos = playerPed.Position + Vector3.WorldUp * -1;
+                        CamRot = World.RenderingCamera.Rotation;
+                    }
+                }
+            }
+
             var ret = new GTAData();
-            ret.Version = 3;
-            ret.ImageName = imageName;
             ret.CurrentWeather = World.Weather;
             ret.CapturedWeathers = capturedWeathers;
             
             ret.Timestamp = DateTime.UtcNow;
             ret.LocalTime = World.CurrentDayTime;
             ret.GameTime = Game.GameTime;
-            ret.CamPos = new GTAVector(World.RenderingCamera.Position);
-            ret.CamRot = new GTAVector(World.RenderingCamera.Rotation);
-            ret.CamDirection = new GTAVector(World.RenderingCamera.Direction);
+            ret.FrameTime = Game.LastFrameTime;
+            ret.StepTime = Function.Call<float>((GTA.Native.Hash)0x0000000050597EE2);
+            ret.CamPos = new GTAVector(CamPos);
+            ret.CamRot = new GTAVector(CamRot);
+            ret.CamDirection = new GTAVector(RotationToDirection(CamRot));
             ret.CamHash = World.RenderingCamera.GetHashCode();
             ret.CamFOV = World.RenderingCamera.FieldOfView;
+            ret.CamNearClip = World.RenderingCamera.NearClip;
+            ret.CamFarClip = World.RenderingCamera.FarClip;
             ret.ImageWidth = Game.ScreenResolution.Width;
             ret.ImageHeight = Game.ScreenResolution.Height;
             ret.UIWidth = UI.WIDTH;
             ret.UIHeight = UI.HEIGHT;
-            ret.GamerPos = new GTAVector(Game.Player.Character.Position);
-            ret.CamNearClip = World.RenderingCamera.NearClip;
-            ret.CamFarClip = World.RenderingCamera.FarClip;
+            ret.GamerPos = new GTAVector(playerPed.Position);
 
             if (Game.Player.Character.IsInVehicle())
             {
-                ret.CarPos = new GTAVector(Game.Player.Character.CurrentVehicle.Position);
-                ret.CarRot = new GTAVector(Game.Player.Character.CurrentVehicle.Rotation);
+                ret.CarPos = new GTAVector(playerPed.CurrentVehicle.Position);
+                ret.CarRot = new GTAVector(playerPed.CurrentVehicle.Rotation);
             }
             else
             {
@@ -618,8 +693,8 @@ namespace GTAVisionUtils
                 ret.CarRot = new GTAVector(Vector3.Zero);
             }
             
-            var peds = World.GetNearbyPeds(Game.Player.Character, 150.0f);
-            var cars = World.GetNearbyVehicles(Game.Player.Character, 150.0f);
+            var peds = World.GetNearbyPeds(Game.Player.Character,  SettingsReader.maxAnnotationRange);
+            var cars = World.GetNearbyVehicles(Game.Player.Character, SettingsReader.maxAnnotationRange);
             //var props = World.GetNearbyProps(Game.Player.Character.Position, 300.0f);
             
             var constants = VisionNative.GetConstants();
