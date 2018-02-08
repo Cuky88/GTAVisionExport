@@ -535,6 +535,9 @@ def plotCV(mode):
         for line in read:
             data.append(line)
     
+    cv2.namedWindow("Test")        # Create a named window
+    cv2.moveWindow("Test", 40,30)  # Move it to (40,30)
+
     ImageFile.LOAD_TRUNCATED_IMAGES = True
     for name in files:       
         for d in data:
@@ -603,13 +606,13 @@ def plotCV(mode):
                             img = cv2.line(img, (p["BUR"]["X"], p["BUR"]["Y"]), (p["BLR"]["X"], p["BLR"]["Y"]), (255, 0, 255), 1)
 
                             img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
-                        
-                cv2.imshow(name,img)
+
+                cv2.putText(img, name, (10,50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255))        
+                cv2.imshow("Test",img)
 
                 key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
                 if key == 27: # escape
+                    cv2.destroyAllWindows()
                     break
 
 def createJson(off):
@@ -696,7 +699,7 @@ def createJson(off):
             #elif value.index(file) == len(value)-1:
                 #os.remove(join(annodir, file))
             else:
-                print("Error: No offsetting between annotation and image found for: \n%s"%join(annodir, img['Image']))
+                print("[WARNING] No offsetting between annotation and image found for: \n%s"%join(annodir, img['Image']))
 
     with open('data_boxes.json', 'w') as outfile:
         json.dump(total, outfile, indent=2)
