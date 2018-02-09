@@ -19,6 +19,7 @@ import glob
 import re
 from subprocess import call
 import math
+import bb_transform as bbt
 
 # Python program to implement Cohen Sutherland algorithm
 # for line clipping.
@@ -158,7 +159,8 @@ def rotate(p, theta):
     Z = -np.sin(theta[1]) * p[0] + np.cos(theta[1]) * (np.sin(theta[0]) * p[1] + np.cos(theta[0]) * p[2])
     #Z = -np.sin(theta[1]) * p[0] + np.cos(theta[1]) * (np.sin(theta[0]) * p[1] + np.cos(theta[0]) * p[2])
     
-    #print(X, Y, Z)
+    if DEBUG_TRANS:
+        print(X, Y, Z)
     return np.array([X,Y,Z])
 
 def getDotVectorResult(camPos, corner, camForward):
@@ -193,6 +195,7 @@ def convertToCamCord(pList, Camrot, Campos, camNearClip, camFOV, imgw, imgh, uiw
         if (getDotVectorResult(np.array([Campos["X"],Campos["Y"], Campos["Z"]], dtype=np.float64), p, camDir) == -1):
             sign = -1.0
             scale = 15
+            # If point is behind the cam, the camera direction will be inverted
             camDir = sign * rotate(np.array([0,1,0]), theta)
 
         # camera position  == eigentlich Bildebene rotiert in Blickrichtung, minimal vor der Cam zu sehen
@@ -221,6 +224,8 @@ def convertToCamCord(pList, Camrot, Campos, camNearClip, camFOV, imgw, imgh, uiw
         
         # Senkrechter Abstand zur Bildebene
         viewPlaneDist = camNearClip / np.cos(ang)
+
+        # Falls Punkt hinter der Kamera liegt, wird der Abstand zur Bildebene vergrößert; sonst erscheint der Punkt auf dem Bild, wenn es lange Fahrzeuge sind
         viewPlaneDist = viewPlaneDist * scale
         
         # Punkt auf der Bildebene
@@ -526,7 +531,7 @@ def main():
 
     plt.show()
 
-def plotCV(mode):
+def plotCV(mode, iou, minw, minh):
     files = [f for f in listdir(in_directory) if isfile(join(in_directory, f)) and f.split(".")[-1]=="tiff" and len(f.split("-"))==1]
 
     data = []
@@ -556,18 +561,31 @@ def plotCV(mode):
                 for p in d['Detections']:
                     if p["Type"] == "car" and p["Visibility"] == True:
                         
+                        # If old bounding box is too small, don't change it
+                        #if w < minw or h < minh:
+                        #   img["Detections"][i] = det
+                        #    continue
+
                         print("\n2D-Center: ")
                         print((p["Pos2D"]["X"], p["Pos2D"]["Y"]))
-                        print("2D-BB: ")
-                        print((p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]))
+                        if 'BBminNew' in p and p["IOU"] > iou:
+                            print("2D-BB NEW: ")
+                            print((p["BBminNew"]["X"], p["BBminNew"]["Y"]), (p["BBmaxNew"]["X"], p["BBmaxNew"]["Y"]))
+                        else:
+                            print("2D-BB OLD: ")
+                            print((p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]))
                         print("3D-BB: ")
                         print((p["FUR"]["X"],p["FUR"]["Y"]), (p["FUL"]["X"],p["FUL"]["Y"]), (p["BUL"]["X"],p["BUL"]["Y"]), (p["BUR"]["X"],p["BUR"]["Y"]), 
                         (p["FLL"]["X"],p["FLL"]["Y"]), (p["BLL"]["X"],p["BLL"]["Y"]), (p["BLR"]["X"],p["BLR"]["Y"]), (p["FLR"]["X"],p["FLR"]["Y"]))
                         print("\n---------------------------------------------------------------------")
                         
                         if mode == 2:
-                            img = cv2.rectangle(img, (p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]), (255, 255, 0), 1)
-                            img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
+                            if 'BBminNew' in p and p["IOU"] > iou:
+                                img = cv2.rectangle(img, (p["BBminNew"]["X"], p["BBminNew"]["Y"]), (p["BBmaxNew"]["X"], p["BBmaxNew"]["Y"]), (255, 255, 0), 1)
+                                img = cv2.circle(im, (p["Pos2DNew"]["X"], p["Pos2DNew"]["Y"]), 1, (0, 0, 255), 2)
+                            else:
+                                img = cv2.rectangle(img, (p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]), (255, 255, 0), 1)
+                                img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
 
                         elif mode == 3:
                             img = cv2.line(img, (p["FUR"]["X"], p["FUR"]["Y"]), (p["FUL"]["X"], p["FUL"]["Y"]), (255, 0, 255), 1)
@@ -587,8 +605,20 @@ def plotCV(mode):
 
                             img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
 
+                        elif mode == 1:
+                            if 'BBminNew' in p and p["IOU"] > iou:
+                                img = cv2.rectangle(img, (p["BBminNew"]["X"], p["BBminNew"]["Y"]), (p["BBmaxNew"]["X"], p["BBmaxNew"]["Y"]), (0, 0, 255), 1)
+                                img = cv2.circle(im, (p["Pos2DNew"]["X"], p["Pos2DNew"]["Y"]), 1, (0, 0, 255), 2)
+
+                            img = cv2.rectangle(img, (p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]), (0, 255, 0), 1)
+                            img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 255, 0), 2)
                         else:
-                            img = cv2.rectangle(img, (p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]), (255, 255, 0), 1)
+                            if 'BBminNew' in p and p["IOU"] > iou:
+                                img = cv2.rectangle(img, (p["BBminNew"]["X"], p["BBminNew"]["Y"]), (p["BBmaxNew"]["X"], p["BBmaxNew"]["Y"]), (255, 255, 0), 1)
+                                img = cv2.circle(im, (p["Pos2DNew"]["X"], p["Pos2DNew"]["Y"]), 1, (0, 0, 255), 2)
+                            else:
+                                img = cv2.rectangle(img, (p["BBmin"]["X"], p["BBmin"]["Y"]), (p["BBmax"]["X"], p["BBmax"]["Y"]), (255, 255, 0), 1)
+                                img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
 
                             img = cv2.line(img, (p["FUR"]["X"], p["FUR"]["Y"]), (p["FUL"]["X"], p["FUL"]["Y"]), (255, 0, 255), 1)
                             img = cv2.line(img, (p["FUL"]["X"], p["FUL"]["Y"]), (p["BUL"]["X"], p["BUL"]["Y"]), (255, 0, 255), 1)
@@ -605,8 +635,6 @@ def plotCV(mode):
                             img = cv2.line(img, (p["BUL"]["X"], p["BUL"]["Y"]), (p["BLL"]["X"], p["BLL"]["Y"]), (255, 0, 255), 1)
                             img = cv2.line(img, (p["BUR"]["X"], p["BUR"]["Y"]), (p["BLR"]["X"], p["BLR"]["Y"]), (255, 0, 255), 1)
 
-                            img = cv2.circle(im, (p["Pos2D"]["X"], p["Pos2D"]["Y"]), 1, (0, 0, 255), 2)
-
                 cv2.putText(img, name, (10,50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255))        
                 cv2.imshow("Test",img)
 
@@ -615,8 +643,9 @@ def plotCV(mode):
                     cv2.destroyAllWindows()
                     break
 
-def createJson(off):
-    annodir = 'Data/'
+def createJson(off, maskID, lL, uL):
+    stencil_s = "-stencil.tiff"
+    depth_s = "-depth.tiff"
 
     objlist = [f for f in listdir(in_directory) if isfile(join(in_directory, f)) and f.split(".")[-1]=="json"]
     data = []
@@ -663,6 +692,24 @@ def createJson(off):
                     img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame) + '.tiff'
                 else:
                     img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame+1) + '.tiff'
+                
+                # Calculate better 2D bounding boxes
+                # Read stencil image
+                im_s = cv2.imread(join(in_directory, img["Image"].split(".")[0] + stencil_s))
+                # Mask array of cars set to 255, rest to 0
+                mask = bbt.maskOff(maskID, im_s)
+                # Stencil is in 8-bit int
+                mask.astype(np.uint8)
+
+                # Read depth image
+                im_d = np.array(tifffile.imread(join(in_directory, img["Image"].split(".")[0] + depth_s)))
+                # Convert float to int
+                maxF = np.max(im_d)
+                im_d = 1*im_d/maxF
+                #im_d = im_d.astype(np.uint8)
+
+                # Mask depth image based in stencil; remove non-car pixels
+                im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
                
                 for i, det in enumerate(img["Detections"]):
                     if det["Visibility"] == True:
@@ -690,16 +737,63 @@ def createJson(off):
 
                         det["BBmin"] = {"X": BB2D[0][0][0],"Y": BB2D[0][0][1]}
                         det["BBmax"] = {"X": BB2D[0][1][0], "Y": BB2D[0][1][1]}
-
                         det["Pos2D"] = {"X": int(BB2D[0][0][0]+(BB2D[0][1][0]-BB2D[0][0][0])/2), "Y": int(BB2D[0][0][1]+(BB2D[0][1][1]-BB2D[0][0][1])/2)}
+                        
+                        # Get old bounding box from json as (minx, miny, width, height)
+                        minx, miny, w, h = BB2D[0][0][0], BB2D[0][0][1], BB2D[0][1][0] - BB2D[0][0][0], BB2D[0][1][1] - BB2D[0][0][1]
+
+                        # Cut out mask and depth images based on the old bounding box for this car
+                        cut_d_masked = im_d_masked[miny:miny+h, minx:minx+w]
+                        cut_mask = mask[miny:miny+h, minx:minx+w]
+
+                        # Check if array is all zero, if so, skip this
+                        if not np.any(cut_d_masked):
+                            img["Detections"][i] = det
+                            continue
+
+                        # Calculate contour and center of stencil blobs and draw bounding box
+                        contours, centers, bb = bbt.findContours(cut_mask)
+                        # Create new mask with stencil blobs, since stencil image cannot be used due to data format (8-bit)
+                        nmask = np.zeros((cut_mask.shape[0], cut_mask.shape[1]), np.uint8)
+                        # Draw contours on new mask; those will be the boundaries for the flood fill
+                        cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
+                        # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
+                        bbcenters = bbt.divideBB(bb, 4)
+                        # Check if the new seed points are lying in the contours and add them to the list
+                        acceptSeeds = bbt.centerInPoly(bbcenters, contours)
+
+                        allSeeds = list()
+                        # Add center of stencil blobs as seeds and also the centers of the divided bounding boxes
+                        allSeeds.extend(centers)
+                        allSeeds.extend(acceptSeeds)
+
+                        if not allSeeds:
+                            img["Detections"][i] = det
+                            continue
+
+                        # Do flood fill on the masked depth image with all the seeds
+                        ffim, ffmask, rects = bbt.ff(nmask, cut_d_masked, allSeeds, lL, uL)
+
+                        #print("BBold: (%d, %d, %d, %d)"%(minx, miny, w, h))
+                        # Calculate IOU and use threshold to decide if new bounding box is accepted
+                        niou = 0
+                        if len(rects) is 1:
+                            r = rects[0]
+                            #print("BBnew: (%d, %d, %d, %d)"%(minx+r[0], miny+r[1], r[2], r[3]))
+                            bb1 = {'x1':minx, 'x2':minx+w, 'y1':miny, 'y2':miny+h}
+                            bb2 = {'x1':minx+r[0], 'x2':minx+r[0]+r[2], 'y1':miny+r[1], 'y2':miny+r[1]+r[3]}
+                            niou = bbt.get_iou(bb1, bb2)
+                            #print("IOU: %f"%niou)
+                            #print("Adding better 2D bounding box!")
+                            det["BBminNew"] = {"X": minx+r[0],"Y": miny+r[1]}
+                            det["BBmaxNew"] = {"X": minx+r[0]+r[2], "Y": miny+r[1]+r[3]}
+                            det["Pos2DNew"] = {"X": int(minx+r[0]+(r[2]/2)), "Y": int(miny+r[1]+(r[3]/2))}
+                            det["IOU"] = niou
+                        
                         img["Detections"][i] = det
-
                 total.append(img)
-
-            #elif value.index(file) == len(value)-1:
-                #os.remove(join(annodir, file))
             else:
-                print("[WARNING] No offsetting between annotation and image found for: \n%s"%join(annodir, img['Image']))
+                print("[WARNING] No offsetting between annotation and image found for: \n%s"%join(in_directory, img['Image']))
 
     with open('data_boxes.json', 'w') as outfile:
         json.dump(total, outfile, indent=2)
@@ -708,20 +802,41 @@ def createJson(off):
 
 if __name__ == '__main__':
     # python visualizeGTA.py --json 1
+    # python visualizeGTA.py --json 1 --mask 2 --lL 0.00099 --ul 0.009 --minw 25 --minh 10
     # python visualizeGTA.py --plot 0
-    # python visualizeGTA.py --plot 1
+    # python visualizeGTA.py --plot 1 --iou 0.5
+    # --mode 0: show 2D & 3D bounding boxes
+    # --mode 1: show old (in green) and new (in red) 2D bounding boxes
+    # --mode 2: show 2D bounding boxes
+    # --mode 3: show 3D bounding boxes
 
     parser = argparse.ArgumentParser()
+    # Plot image with bbs or plot image with stencil and depth
     parser.add_argument('--plot', default=None, type=int)
-    parser.add_argument('--mode', default=None, type=int)
+    # Chooses which bbs are plotted, 2D, 3D, both, old & new 2D
+    parser.add_argument('--mode', default=0, type=int)
+    # Command to create json
     parser.add_argument('--json', default=None, type=int)
+    # Offseting between image and annotation, since data has one frame lag
     parser.add_argument('--off', default=1, type=int)
+    # ID of the stencil mask, which should be used for bb optimization
+    parser.add_argument('--mask', default=2, type=int)
+    # IOU threshold for accepting optimized bb, 0.5 is good
+    parser.add_argument('--iou', default=0.5, type=float)
+    # Lower limit parameter for flood fill algo
+    parser.add_argument('--lL', default=0.00099, type=float)
+    # Upper limit parameter for flood fill algo
+    parser.add_argument('--uL', default=0.009, type=float)
+    # Minimum old bounding box width to be selected for bb optimization
+    parser.add_argument('--minw', default=25, type=int)
+    # Minimum old bounding box height to be selected for bb optimization
+    parser.add_argument('--minh', default=10, type=int)
     args = parser.parse_args()
 
     if args.json is not None:
         print("Calling createJson")
-        createJson(args.off)
+        createJson(args.off, args.mask, args.lL, args.uL)
     # Plot image with bbs
-    elif args.plot == 1: plotCV(args.mode)
+    elif args.plot == 1: plotCV(args.mode, args.iou, args.minw, args.minh)
     # Plot color, depth and stencil image
     elif args.plot == 0: main()
