@@ -82,11 +82,6 @@ namespace GTAVisionExport
             this.KeyDown += OnKeyDown;
             Interval = 0;
 
-            while (player.Exists() == false)
-            {
-                Script.Wait(0);
-            }
-
             // Activate Trainer
             player.IsInvincible = true;
             player.WantedLevel = 0;
@@ -114,8 +109,11 @@ namespace GTAVisionExport
         {
             while (runActive && runCnt <= SettingsReader.runLoop)
             {
+                Game.Pause(true);
                 runDataCollection(runCnt);
                 runCnt += 1;
+                Game.Pause(false);
+                Script.Wait(0);
             }
         }
 
@@ -127,13 +125,12 @@ namespace GTAVisionExport
             Crossings.getCrossID(out crossID);
             string fname = "gtav_cid" + crossID.ToString() + "_c" + World.RenderingCamera.Handle + "_" + i.ToString();
             //List<byte[]> colors = new List<byte[]>();
-            Game.Pause(true);
 
             //colors.Add(VisionNative.GetColorBuffer());
             var colors = VisionNative.GetColorBuffer();
             var depth = VisionNative.GetDepthBuffer();
             var stencil = VisionNative.GetStencilBuffer();
-            //Script.Wait(1);
+            Script.Wait(1);
             //foreach (var wea in wantedWeather)
             //{
             //    World.TransitionToWeather(wea, 0.0f);
@@ -141,10 +138,11 @@ namespace GTAVisionExport
             //    colors.Add(VisionNative.GetColorBuffer());
             //}
 
-            var data = GTAData.DumpData(new List<Weather>(wantedWeather));
-
             if (depth != null && stencil!= null && colors != null)
             {
+                var data = GTAData.DumpData(new List<Weather>(wantedWeather));
+                Script.Wait(0);
+
                 var res = Game.ScreenResolution;
                 var fileName = Path.Combine(SettingsReader.DATA_FOLDER, fname);
                 //UI.ShowSubtitle(fileName);
@@ -216,14 +214,13 @@ namespace GTAVisionExport
                 string jsonData = JsonConvert.SerializeObject(cd);
                 File.AppendAllText(path, jsonData);
                 File.AppendAllText(path, "\n");
-
-                Game.Pause(false);
-                Script.Wait(0);
             }
             else
             {
                 UI.Notify("No Depth Data aquired yet");
             }
+            
+            //Script.Wait(0);
         }
 
         public Bitmap CaptureScreen()

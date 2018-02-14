@@ -142,14 +142,14 @@ namespace GTAVisionUtils
             //BBmax = new GTAVector2(bb[1].X, bb[1].Y);
 
             // Better use this 3Dto2D Transformation; but it is outsourced into python to save performance - unfortunately python does something weired, so we use this code
-            Vector2 FURtmp = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
-            Vector2 FULtmp = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
-            Vector2 BULtmp = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
-            Vector2 BURtmp = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
-            Vector2 FLRtmp = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
-            Vector2 FLLtmp = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
-            Vector2 BLLtmp = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
-            Vector2 BLRtmp = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
+            //Vector2 FURtmp = GTAData.get2Dfrom3D(new Vector3(FURGame.X, FURGame.Y, FURGame.Z), ImgW, ImgH);
+            //Vector2 FULtmp = GTAData.get2Dfrom3D(new Vector3(FULGame.X, FULGame.Y, FULGame.Z), ImgW, ImgH);
+            //Vector2 BULtmp = GTAData.get2Dfrom3D(new Vector3(BULGame.X, BULGame.Y, BULGame.Z), ImgW, ImgH);
+            //Vector2 BURtmp = GTAData.get2Dfrom3D(new Vector3(BURGame.X, BURGame.Y, BURGame.Z), ImgW, ImgH);
+            //Vector2 FLRtmp = GTAData.get2Dfrom3D(new Vector3(FLRGame.X, FLRGame.Y, FLRGame.Z), ImgW, ImgH);
+            //Vector2 FLLtmp = GTAData.get2Dfrom3D(new Vector3(FLLGame.X, FLLGame.Y, FLLGame.Z), ImgW, ImgH);
+            //Vector2 BLLtmp = GTAData.get2Dfrom3D(new Vector3(BLLGame.X, BLLGame.Y, BLLGame.Z), ImgW, ImgH);
+            //Vector2 BLRtmp = GTAData.get2Dfrom3D(new Vector3(BLRGame.X, BLRGame.Y, BLRGame.Z), ImgW, ImgH);
 
             //Calculate dimension of 2d bb
             //Vector2[] bb = GTAData.BB2D(new Vector2[] { FURtmp, FULtmp, BULtmp, BURtmp, FLRtmp, FLLtmp, BLLtmp, BLRtmp });
@@ -693,10 +693,6 @@ namespace GTAVisionUtils
                 ret.CarRot = new GTAVector(Vector3.Zero);
             }
             
-            var peds = World.GetNearbyPeds(Game.Player.Character,  SettingsReader.maxAnnotationRange);
-            var cars = World.GetNearbyVehicles(Game.Player.Character, SettingsReader.maxAnnotationRange);
-            //var props = World.GetNearbyProps(Game.Player.Character.Position, 300.0f);
-            
             var constants = VisionNative.GetConstants();
             if (!constants.HasValue) return null;
             var W = MathNet.Numerics.LinearAlgebra.Single.DenseMatrix.OfColumnMajor(4, 4, constants.Value.world.ToArray()).ToDouble();
@@ -711,24 +707,30 @@ namespace GTAVisionUtils
             var P = WVP*WV.Inverse();
             ret.ProjectionMatrix = P as DenseMatrix;
             ret.ViewMatrix = V as DenseMatrix;
-            
-            var pedList = from ped in peds
-                where ped.IsHuman && ped.IsOnFoot && ped != Game.Player.Character
-                          select new GTADetection(ped, ret.ImageWidth, ret.ImageHeight, ret.CamPos);
-            var cycles = from ped in peds
-                where ped.IsOnBike && ped != Game.Player.Character
-                         select new GTADetection(ped, DetectionType.bicycle, ret.ImageWidth, ret.ImageHeight, ret.CamPos);
+
+            var cars = World.GetNearbyVehicles(Game.Player.Character, SettingsReader.maxAnnotationRange);
+            //var props = World.GetNearbyProps(Game.Player.Character.Position, SettingsReader.maxAnnotationRange);
+
+            if (SettingsReader.getPeds)
+            {
+                var peds = World.GetNearbyPeds(Game.Player.Character, SettingsReader.maxAnnotationRange);
+                var pedList = from ped in peds
+                              where ped.IsHuman && ped.IsOnFoot && ped != Game.Player.Character
+                              select new GTADetection(ped, ret.ImageWidth, ret.ImageHeight, ret.CamPos);
+                var cycles = from ped in peds
+                             where ped.IsOnBike && ped != Game.Player.Character
+                             select new GTADetection(ped, DetectionType.bicycle, ret.ImageWidth, ret.ImageHeight, ret.CamPos);
+                ret.Detections.AddRange(pedList);
+                ret.Detections.AddRange(cycles);
+            }
             
             var vehicleList = from car in cars
                               where car != Game.Player.Character.CurrentVehicle
                               select new GTADetection(car, ret.ImageWidth, ret.ImageHeight, ret.CamPos);
             ret.Detections = new List<GTADetection>();
-            ret.Detections.AddRange(pedList);
             ret.Detections.AddRange(vehicleList);
-            ret.Detections.AddRange(cycles);
             
             return ret;
-        }
-        
+        } 
     }
 }

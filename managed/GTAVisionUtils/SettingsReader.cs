@@ -18,5 +18,6 @@ namespace GTAVisionUtils {
         public const bool DEBUG_TRANS = false;
         public const string DEBUG_PATH = @"D:\Devel\GTAVisionExport\managed\Data\transformation.txt";
         public const int runLoop = 20000;
+        public const bool getPeds = false;
     }
 }

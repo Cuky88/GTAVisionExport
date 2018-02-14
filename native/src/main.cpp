@@ -209,7 +209,7 @@ void clear_render_target_view_hook(ID3D11DeviceContext* self, ID3D11RenderTarget
 		hr = res.As(&tex);
 		if (hr != S_OK) return;
 		tex->GetDesc(&desc);
-		if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM && desc.Width > 500 && desc.Height > 500) {
+		if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM && desc.Width > 400 && desc.Height > 400) {
 			lastRtv = curRTV;
 		}
 	}
@@ -232,7 +232,7 @@ void clear_depth_stencil_view_hook(ID3D11DeviceContext* self, ID3D11DepthStencil
 		if (hr != S_OK) return;
 		tex->GetDesc(&desc);
 		
-		if (lastDsv == nullptr && desc.Format == DXGI_FORMAT_R32G8X24_TYPELESS && desc.Width > 500 && desc.Height > 500) {
+		if (lastDsv == nullptr && desc.Format == DXGI_FORMAT_R32G8X24_TYPELESS && desc.Width > 400 && desc.Height > 400) {
 			lastDsv = curDSV;
 			ExtractDepthBuffer(dev.Get(), self, res.Get());
 			last_capture_depth = system_clock::now();
