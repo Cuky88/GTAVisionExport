@@ -758,7 +758,11 @@ def createJson(off, maskID, lL, uL):
                         # Draw contours on new mask; those will be the boundaries for the flood fill
                         cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
                         # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
-                        bbcenters = bbt.divideBB(bb, 4)
+                        if w >= 150 or h >= 150:
+                            divider = 10
+                        else:
+                            divider = 4
+                        bbcenters = bbt.divideBB(bb, divider)
                         # Check if the new seed points are lying in the contours and add them to the list
                         acceptSeeds = bbt.centerInPoly(bbcenters, contours)
 
@@ -802,9 +806,9 @@ def createJson(off, maskID, lL, uL):
 
 if __name__ == '__main__':
     # python visualizeGTA.py --json 1
-    # python visualizeGTA.py --json 1 --mask 2 --lL 0.00099 --ul 0.009 --minw 25 --minh 10
+    # python visualizeGTA.py --json 1 --mask 2 --lL 0.00099 --ul 0.009
     # python visualizeGTA.py --plot 0
-    # python visualizeGTA.py --plot 1 --iou 0.5
+    # python visualizeGTA.py --plot 1 --iou 0.1 --minw 25 --minh 10
     # --mode 0: show 2D & 3D bounding boxes
     # --mode 1: show old (in green) and new (in red) 2D bounding boxes
     # --mode 2: show 2D bounding boxes
@@ -824,9 +828,9 @@ if __name__ == '__main__':
     # IOU threshold for accepting optimized bb, 0.5 is good
     parser.add_argument('--iou', default=0.5, type=float)
     # Lower limit parameter for flood fill algo
-    parser.add_argument('--lL', default=0.00099, type=float)
+    parser.add_argument('--lL', default=0.005, type=float)
     # Upper limit parameter for flood fill algo
-    parser.add_argument('--uL', default=0.009, type=float)
+    parser.add_argument('--uL', default=0.05, type=float)
     # Minimum old bounding box width to be selected for bb optimization
     parser.add_argument('--minw', default=25, type=int)
     # Minimum old bounding box height to be selected for bb optimization

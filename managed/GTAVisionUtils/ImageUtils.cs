@@ -11,13 +11,14 @@ namespace GTAVisionUtils {
 
     public class ImageUtils
     {
-        public static void WriteToTiff(string name, int width, int height, List<byte[]> colors, byte[] depth, byte[] stencil)
+        public void WriteToTiff(string name, int width, int height, byte[] colors, byte[] depth, byte[] stencil)
         {
+            // Statt byte[] colors ist im orginal: List<byte[]> colors
             var t = Tiff.Open(name + ".tiff", "w");
-            var pages = colors.Count;
-            var page = 0;
-            foreach (var color in colors)
-            {
+            //var pages = colors.Count;
+            //var page = 0;
+            //foreach (var color in colors)
+            //{
                 t.CreateDirectory();
                 t.SetField(TiffTag.IMAGEWIDTH, width);
                 t.SetField(TiffTag.IMAGELENGTH, height);
@@ -31,11 +32,11 @@ namespace GTAVisionUtils {
                 t.SetField(TiffTag.JPEGQUALITY, 100);
                 t.SetField(TiffTag.PREDICTOR, Predictor.HORIZONTAL);
                 t.SetField(TiffTag.SAMPLEFORMAT, SampleFormat.UINT);
-                t.SetField(TiffTag.PAGENUMBER, page, pages);
-                t.WriteEncodedStrip(0, color, color.Length);
-                page++;
-                t.WriteDirectory();
-            }
+                //t.SetField(TiffTag.PAGENUMBER, page, pages);
+                t.WriteEncodedStrip(0, colors, colors.Length);
+            //    page++;
+            //    t.WriteDirectory();
+            //}
             t.Flush();
             t.Close();
 

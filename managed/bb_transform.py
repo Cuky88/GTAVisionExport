@@ -27,9 +27,10 @@ def ff(nmask, depth, seeds, lL, uL):
     mask = np.zeros((h+2,w+2),np.uint8)
     mask[1:h+1, 1:w+1] = nmask
 
-    floodflags = 4
+    floodflags = 8
     #floodflags |= cv2.FLOODFILL_MASK_ONLY
     floodflags |= (128 << 8)
+    #floodflags |= cv2.FLOODFILL_FIXED_RANGE
 
     rects = list()
     for seed in seeds:
@@ -48,10 +49,11 @@ def ff(nmask, depth, seeds, lL, uL):
 
 def maskOff(id, im):
     # This function is needed to manipulate the mask, so that it can be used in the main flood fill function (ff)
+    # Basically this creates the same mask as the input but only for a certain category id; The original mask is somehow not usable in cv2, so flood fill is used to convert the mask
     a = np.array(im)
     #print(np.unique(a)) # [0 1 2 3 4 7 8]
 
-    # Create mask
+    # Create mask for object:
     # a[np.logical_or(a>8, a<8)] = 0 # For Plants?
     # a[np.logical_or(a>7, a<7)] = 0 # For Buildings and Objects
     # a[np.logical_or(a>6, a<6)] = 0  # Empty!
@@ -67,7 +69,7 @@ def maskOff(id, im):
     im_floodfill = a.copy()
     
     # Mask used to flood filling.
-    # Notice the size needs to be 2 pixels than the image.
+    # Notice the size needs to be 2 pixels larger than the image.
     h, w = a.shape[:2]
     mask = np.zeros((h+2, w+2), np.uint8)
     
@@ -211,8 +213,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--mask', default=None, type=int)
     parser.add_argument('--iou', default=0.5, type=float)
-    parser.add_argument('--lL', default=0.00099, type=float)
-    parser.add_argument('--uL', default=0.009, type=float)
+    parser.add_argument('--lL', default=0.005, type=float)
+    parser.add_argument('--uL', default=0.05, type=float)
+    parser.add_argument('--debug', default=0, type=int)
     args = parser.parse_args()
     stencil_s = "-stencil.tiff"
     depth_s = "-depth.tiff"
@@ -233,7 +236,7 @@ if __name__ == '__main__':
             # Mask array of cars set to 255, rest to 0
             mask = maskOff(args.mask, im_s)
             # Stencil is in 8-bit int
-            mask.astype(np.uint8)
+            #mask.astype(np.uint8)
 
             # Read depth image
             im_d = np.array(tifffile.imread("Data\\" + img["Image"].split(".")[0] + depth_s))
@@ -242,9 +245,83 @@ if __name__ == '__main__':
             im_d = 1*im_d/maxF
             #im_d = im_d.astype(np.uint8)
 
-            # Mask depth image based in stencil; remove non-car pixels
+            # Mask depth image based from stencil and remove non-car pixels
             im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
 
+            if args.debug:
+                print("Data\\" + img["Image"].split(".")[0] + depth_s)
+                cut_d_masked = im_d_masked
+                cut_mask = mask
+
+                # Check if array is all zero, if so, skip this
+                if not np.any(cut_d_masked):
+                    continue
+
+                # Calculate contour and center of stencil blobs and draw bounding box
+                contours, centers, bb = findContours(cut_mask)
+                # Create new mask with stencil blobs, since stencil image cannot be used due to data format (8-bit)
+                nmask = np.zeros((cut_mask.shape[0], cut_mask.shape[1]), np.uint8)
+                # Draw contours on new mask; those will be the boundaries for the flood fill
+                cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
+                # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
+                divider = 4
+                bbcenters = divideBB(bb, divider)
+                # Check if the new seed points are lying in the contours and add them to the list
+                acceptSeeds = centerInPoly(bbcenters, contours)
+
+                print("cut_d_masked")
+                cv2.imshow("Test", cut_d_masked)
+                key = cv2.waitKey(0)
+                if key == 27: # escape
+                    cv2.destroyAllWindows()
+                    break
+
+                allSeeds = list()
+                # Add center of stencil blobs as seeds and also the centers of the divided bounding boxes
+                allSeeds.extend(centers)
+                allSeeds.extend(acceptSeeds)
+
+                if not allSeeds:
+                    continue
+
+                # Visualize the seeds
+                for b in acceptSeeds:
+                    cv2.circle(nmask, b, 2, (255, 255, 255), -1)
+
+                print("nmask")
+                cv2.imshow("Test", nmask)
+                key = cv2.waitKey(0)
+                if key == 27: # escape
+                    cv2.destroyAllWindows()
+                    break
+
+                # Do flood fill on the masked depth image with all the seeds
+                ffim, ffmask, rects = ff(nmask, cut_d_masked, allSeeds, args.lL, args.uL)
+
+                print("ffim")
+                cv2.imshow("Test", ffim)
+                key = cv2.waitKey(0)
+                if key == 27: # escape
+                    cv2.destroyAllWindows()
+                    break
+                    
+                # Draw adjusted bounding boxes on flood filled mask
+                ffmask = cv2.cvtColor(ffmask,cv2.COLOR_GRAY2RGB)
+
+                for r in rects:
+                    print("BBnew: (%d, %d, %d, %d)"%(r[0], r[1], r[0]+r[2], r[1]+r[3]))
+                    ffmask = cv2.rectangle(ffmask, (r[0], r[1]), (r[0]+r[2], r[1]+r[3]), (255, 255, 0), 1)
+
+                ffmask = cv2.applyColorMap(ffmask, cv2.COLORMAP_JET)
+                print("ffmask")
+                cv2.imshow("Test", ffmask)
+                key = cv2.waitKey(0)
+
+                if key == 27: # escape
+                    cv2.destroyAllWindows()
+                    break
+                continue
+                    
             for det in img["Detections"]:
                 if det["Type"] == "car" and det["Visibility"] == True:
                     print("Data\\" + img["Image"].split(".")[0] + depth_s)
@@ -267,7 +344,11 @@ if __name__ == '__main__':
                     # Draw contours on new mask; those will be the boundaries for the flood fill
                     cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
                     # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
-                    bbcenters = divideBB(bb, 4)
+                    if w >= 150 or h >= 150:
+                        divider = 10
+                    else:
+                        divider = 4
+                    bbcenters = divideBB(bb, divider)
                     # Check if the new seed points are lying in the contours and add them to the list
                     acceptSeeds = centerInPoly(bbcenters, contours)
 

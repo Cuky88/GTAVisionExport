@@ -312,8 +312,8 @@ namespace GTAVisionUtils
         public static GTAVector2 scalePoints(Vector2 p, int ImageWidth, int ImageHeight)
         {
             //return new GTAVector2((int)(p.X), (int)(p.Y));
-            //return new GTAVector2((int)(ImageWidth / (1.0 * UI.WIDTH) * p.X), (int)(ImageHeight / (1.0 * UI.HEIGHT) * p.Y));
-            return new GTAVector2(p.X, p.Y);
+            return new GTAVector2((int)(ImageWidth / (1.0 * UI.WIDTH) * p.X), (int)(ImageHeight / (1.0 * UI.HEIGHT) * p.Y));
+            //return new GTAVector2(p.X, p.Y);
         }
     
         public static float getDotVectorResult(Vector3 camPos, Vector3 corner, Vector3 camForward)

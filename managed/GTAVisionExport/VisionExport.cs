@@ -66,6 +66,10 @@ namespace GTAVisionExport
         private string path;
         private int FileCounter = 1;
 
+        ImageUtils TiffSaver = new ImageUtils();
+        public bool runActive = false;
+        public int runCnt = 0;
+
         public VisionExport()
         {
             if (!Directory.Exists(SettingsReader.DATA_FOLDER)) Directory.CreateDirectory(SettingsReader.DATA_FOLDER);
@@ -108,6 +112,118 @@ namespace GTAVisionExport
 
         public void OnTick(object o, EventArgs e)
         {
+            while (runActive && runCnt <= SettingsReader.runLoop)
+            {
+                runDataCollection(runCnt);
+                runCnt += 1;
+            }
+        }
+
+        public void runDataCollection(int i)
+        {
+            var dateTimeFormat = @"yyyy-MM-dd_HH-mm-ss";
+            int crossID = 0;
+
+            Crossings.getCrossID(out crossID);
+            string fname = "gtav_cid" + crossID.ToString() + "_c" + World.RenderingCamera.Handle + "_" + i.ToString();
+            //List<byte[]> colors = new List<byte[]>();
+            Game.Pause(true);
+
+            //colors.Add(VisionNative.GetColorBuffer());
+            var colors = VisionNative.GetColorBuffer();
+            var depth = VisionNative.GetDepthBuffer();
+            var stencil = VisionNative.GetStencilBuffer();
+            //Script.Wait(1);
+            //foreach (var wea in wantedWeather)
+            //{
+            //    World.TransitionToWeather(wea, 0.0f);
+            //    Script.Wait(1);
+            //    colors.Add(VisionNative.GetColorBuffer());
+            //}
+
+            var data = GTAData.DumpData(new List<Weather>(wantedWeather));
+
+            if (depth != null && stencil!= null && colors != null)
+            {
+                var res = Game.ScreenResolution;
+                var fileName = Path.Combine(SettingsReader.DATA_FOLDER, fname);
+                //UI.ShowSubtitle(fileName);
+                TiffSaver.WriteToTiff(fileName, res.Width, res.Height, colors, depth, stencil);
+                //Script.Wait(0);
+
+                path = SettingsReader.DATA_FOLDER + "ObjectList_" + FileCounter + ".json";
+                //This text is added only once to the file.
+                if (!File.Exists(path))
+                {
+                    // Create a file to write to.
+                    using (StreamWriter file = File.CreateText(path))
+                    {
+                        //file.WriteLine("File number " + FileCounter.ToString());
+                        //file.WriteLine("All coordinates are in game space!");
+                        //file.WriteLine("");
+                    }
+                }
+
+                long length = new System.IO.FileInfo(path).Length;
+
+                if (length / 1024 / 1024 > 20) //if json file bigger than 20 MB
+                {
+                    FileCounter++;
+                    path = SettingsReader.DATA_FOLDER + "ObjectList_" + FileCounter + ".json";
+
+                    if (!File.Exists(path))
+                    {
+                        // Create a file to write to.
+                        using (StreamWriter file = File.CreateText(path))
+                        {
+                            //file.WriteLine("File number " + FileCounter.ToString());
+                            //file.WriteLine("All coordinates are in game space!");
+                            //file.WriteLine("");
+                        }
+                    }
+                }
+
+                CollectedData cd = new CollectedData
+                {
+                    Image = fname + ".tiff",
+                    ImageWidth = data.ImageWidth,
+                    ImageHeight = data.ImageHeight,
+                    UIwidth = data.UIWidth,
+                    UIheight = data.UIHeight,
+                    RealTime = data.Timestamp,
+                    GameTime = data.LocalTime,
+                    GameTime2 = data.GameTime,
+                    FrameTime = data.FrameTime,
+                    Campos = data.CamPos,
+                    Camrot = data.CamRot,
+                    Camdir = data.CamDirection,
+                    PMatrix = data.ProjectionMatrix,
+                    VMatrix = data.ViewMatrix,
+                    Gamerpos = data.GamerPos,
+                    Carpos = data.CarPos,
+                    Carrot = data.CarRot,
+                    CamHash = data.CamHash,
+                    CamFOV = data.CamFOV,
+                    CamNearClip = data.CamNearClip,
+                    CamFarClip = data.CamFarClip
+                };
+
+                foreach (var detection in data.Detections)
+                {
+                    cd.Detections.Add(detection);
+                }
+
+                string jsonData = JsonConvert.SerializeObject(cd);
+                File.AppendAllText(path, jsonData);
+                File.AppendAllText(path, "\n");
+
+                Game.Pause(false);
+                Script.Wait(0);
+            }
+            else
+            {
+                UI.Notify("No Depth Data aquired yet");
+            }
         }
 
         public Bitmap CaptureScreen()
@@ -194,111 +310,13 @@ namespace GTAVisionExport
 
             if (k.KeyCode == Keys.N)
             {
-                var dateTimeFormat = @"yyyy-MM-dd_HH-mm-ss";
-                int crossID;                
-
-                for (int i = 0; i < 20000; i++)
+                if (runActive)
                 {
-                    Crossings.getCrossID(out crossID);
-                    string fname = "gtav_cid" + crossID.ToString() + "_c" + World.RenderingCamera.Handle + "_" + i.ToString();
-                    List<byte[]> colors = new List<byte[]>();
-                    Game.Pause(true);
-
-                    colors.Add(VisionNative.GetColorBuffer());
-                    var depth = VisionNative.GetDepthBuffer();
-                    var stencil = VisionNative.GetStencilBuffer();
-                    Script.Wait(1);
-                    //foreach (var wea in wantedWeather)
-                    //{
-                    //    World.TransitionToWeather(wea, 0.0f);
-                    //    Script.Wait(1);
-                    //    colors.Add(VisionNative.GetColorBuffer());
-                    //}
-
-                    //Game.Pause(false);
-
-                    var data = GTAData.DumpData(new List<Weather>(wantedWeather));
-                    Script.Wait(0);
-
-                    if (depth != null)
-                    {
-                        var res = Game.ScreenResolution;
-                        var fileName = Path.Combine(SettingsReader.DATA_FOLDER, fname);
-                        ImageUtils.WriteToTiff(fileName, res.Width, res.Height, colors, depth, stencil);
-                    }
-                    else
-                    {
-                        UI.Notify("No Depth Data aquired yet");
-                    }
-
-                    path = SettingsReader.DATA_FOLDER + "ObjectList_" + FileCounter + ".json";
-                    //This text is added only once to the file.
-                    if (!File.Exists(path))
-                    {
-                        // Create a file to write to.
-                        using (StreamWriter file = File.CreateText(path))
-                        {
-                            //file.WriteLine("File number " + FileCounter.ToString());
-                            //file.WriteLine("All coordinates are in game space!");
-                            //file.WriteLine("");
-                        }
-                    }
-
-                    long length = new System.IO.FileInfo(path).Length;
-          
-                    if (length / 1024 / 1024 > 10) //if json file bigger than 10 MB
-                    {
-                        FileCounter++;
-                        path = SettingsReader.DATA_FOLDER + "ObjectList_" + FileCounter + ".json";
-
-                        if (!File.Exists(path))
-                        {
-                            // Create a file to write to.
-                            using (StreamWriter file = File.CreateText(path))
-                            {
-                                //file.WriteLine("File number " + FileCounter.ToString());
-                                //file.WriteLine("All coordinates are in game space!");
-                                //file.WriteLine("");
-                            }
-                        }
-                    }
-
-                    CollectedData cd = new CollectedData
-                    {
-                        Image = fname + ".tiff",
-                        ImageWidth = data.ImageWidth,
-                        ImageHeight = data.ImageHeight,
-                        UIwidth = data.UIWidth,
-                        UIheight = data.UIHeight,
-                        RealTime = data.Timestamp,
-                        GameTime = data.LocalTime,
-                        GameTime2 = data.GameTime,
-                        FrameTime = data.FrameTime,
-                        Campos = data.CamPos,
-                        Camrot = data.CamRot,
-                        Camdir = data.CamDirection,
-                        PMatrix = data.ProjectionMatrix,
-                        VMatrix = data.ViewMatrix,
-                        Gamerpos = data.GamerPos,
-                        Carpos = data.CarPos,
-                        Carrot = data.CarRot,
-                        CamHash = data.CamHash,
-                        CamFOV = data.CamFOV,
-                        CamNearClip = data.CamNearClip,
-                        CamFarClip = data.CamFarClip
-                    };
-
-                    foreach (var detection in data.Detections)
-                    {
-                        cd.Detections.Add(detection);
-                    }
-
-                    string jsonData = JsonConvert.SerializeObject(cd);
-                    File.AppendAllText(path, jsonData);
-                    File.AppendAllText(path, "\n");
-
-                    Game.Pause(false);
-                    Script.Wait(0);
+                    runActive = false;
+                }
+                else
+                {
+                    runActive = true;
                 }
             }
         }
