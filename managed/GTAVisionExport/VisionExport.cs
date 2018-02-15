@@ -218,6 +218,9 @@ namespace GTAVisionExport
             else
             {
                 UI.Notify("No Depth Data aquired yet");
+
+                // This is needed, so that numbering is without gaps; will be important in post processing for offsetting between data and image
+                runCnt -= 1;
             }
             
             //Script.Wait(0);

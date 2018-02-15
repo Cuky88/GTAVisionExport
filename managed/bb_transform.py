@@ -40,7 +40,7 @@ def ff(nmask, depth, seeds, lL, uL):
         # draw a blue circle at the seed point
         cv2.circle(depth, seed, 1, 0, 2)
         cv2.circle(mask, seed, 1, 255, 2)
-
+        #print(rects)
         # Check if all rects are correct, if not, delete them
         if rect[2] is not 0 and rect[3] is not 0:
             rects.append(rect)
@@ -206,6 +206,31 @@ def get_iou(bb1, bb2):
     assert iou >= 0.0
     assert iou <= 1.0
     return iou
+
+def getDivider(w, h):
+    if w >= 200 and h >= 200:
+        return 6
+    elif w <= 75 and h <= 75:
+        return 2
+    else:
+        return 4
+
+def getStencilBB(bb):
+    #print("Before: " + str(bb))
+    # Get the bigger bb from the detected contours
+    if len(bb) > 1:
+        maxArea = 0
+        for i in range(len(bb)-1):
+            # width: bb[i][2] - height: bb[i][3]
+            # print("BB from stencil used")
+            maxArea = max(bb[i][2]*bb[i][3], bb[i+1][2]*bb[i+1][3])
+        for i in range(len(bb)):
+            if maxArea == bb[i][2]*bb[i][3]:
+                #print("MaxArea: " + str(bb[i]))
+                return bb[i]
+    else:
+        #print("2: " + str(bb[0]))
+        return bb[0]
     
 if __name__ == '__main__':
     # python bb_transform.py --mask 2
@@ -216,6 +241,8 @@ if __name__ == '__main__':
     parser.add_argument('--lL', default=0.005, type=float)
     parser.add_argument('--uL', default=0.05, type=float)
     parser.add_argument('--debug', default=0, type=int)
+    # Frame number where the debugging should start
+    parser.add_argument('--frame', default=0, type=int)
     args = parser.parse_args()
     stencil_s = "-stencil.tiff"
     depth_s = "-depth.tiff"
@@ -231,6 +258,8 @@ if __name__ == '__main__':
                 data.append(line)
 
         for img in data:
+            if int(img['Image'].split('_')[3][:-5]) < args.frame:
+                continue
             # Read stencil image
             im_s = cv2.imread("Data\\" + img["Image"].split(".")[0] + stencil_s)
             # Mask array of cars set to 255, rest to 0
@@ -339,15 +368,17 @@ if __name__ == '__main__':
 
                     # Calculate contour and center of stencil blobs and draw bounding box
                     contours, centers, bb = findContours(cut_mask)
+
+                    # Get bounding box based on stencil map
+                    newBB = getStencilBB(bb)
+                        
                     # Create new mask with stencil blobs, since stencil image cannot be used due to data format (8-bit)
                     nmask = np.zeros((cut_mask.shape[0], cut_mask.shape[1]), np.uint8)
                     # Draw contours on new mask; those will be the boundaries for the flood fill
                     cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
                     # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
-                    if w >= 150 or h >= 150:
-                        divider = 10
-                    else:
-                        divider = 4
+                    divider = getDivider(w, h)
+                    print("Divider: %d"%divider)
                     bbcenters = divideBB(bb, divider)
                     # Check if the new seed points are lying in the contours and add them to the list
                     acceptSeeds = centerInPoly(bbcenters, contours)
@@ -391,17 +422,24 @@ if __name__ == '__main__':
                     # Draw adjusted bounding boxes on flood filled mask
                     ffmask = cv2.cvtColor(ffmask,cv2.COLOR_GRAY2RGB)
                     print("BBold: (%d, %d, %d, %d)"%(minx, miny, w, h))
-
+                    #print("newBB: (%d, %d, %d, %d)"%(newBB[0], newBB[1], newBB[2], newBB[3]))
                     if len(rects) is 1:
                         r = rects[0]
                         print("BBnew: (%d, %d, %d, %d)"%(minx+r[0], miny+r[1], r[2], r[3]))
-                        bb1 = {'x1':minx, 'x2':minx+w, 'y1':miny, 'y2':miny+h}
+                        #bb1 = {'x1':minx, 'x2':minx+w, 'y1':miny, 'y2':miny+h}
+
+                        bb1 = {'x1':minx+newBB[0], 'x2':minx+newBB[0]+newBB[2], 'y1':miny+newBB[1], 'y2':miny+newBB[1]+newBB[3]}
                         bb2 = {'x1':minx+r[0], 'x2':minx+r[0]+r[2], 'y1':miny+r[1], 'y2':miny+r[1]+r[3]}
                         ffmask = cv2.rectangle(ffmask, (r[0], r[1]), (r[0]+r[2], r[1]+r[3]), (255, 255, 0), 1)
                         print("IOU: %f"%get_iou(bb1, bb2))
                     else:
                         print("More then 1 Bounding Box found")
-
+                        # Get biggest final bounding box
+                        finalBB = getStencilBB(rects)
+                        bb1 = {'x1':minx+newBB[0], 'x2':minx+newBB[0]+newBB[2], 'y1':miny+newBB[1], 'y2':miny+newBB[1]+newBB[3]}
+                        bb2 = {'x1':minx+finalBB[0], 'x2':minx+finalBB[0]+finalBB[2], 'y1':miny+finalBB[1], 'y2':miny+finalBB[1]+finalBB[3]}
+                        ffmask = cv2.rectangle(ffmask, (finalBB[0], finalBB[1]), (finalBB[0]+finalBB[2], finalBB[1]+finalBB[3]), (255, 255, 0), 1)
+                        print("IOU: %f"%get_iou(bb1, bb2))
 
                     ffmask = cv2.applyColorMap(ffmask, cv2.COLORMAP_JET)
                     print("ffmask")

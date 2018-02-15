@@ -20,6 +20,7 @@ import re
 from subprocess import call
 import math
 import bb_transform as bbt
+import itertools
 
 # Python program to implement Cohen Sutherland algorithm
 # for line clipping.
@@ -36,6 +37,64 @@ stencils = {}
 in_directory = 'Data\\'
 out_directory = 'Data\\img2\\'
 DEBUG_TRANS = False
+
+
+# Class for creating rectangle objects; is needed to check if one rectangle is in another rectangle
+class Rectangle:
+    def intersection(self, other):
+        a, b = self, other
+        x1 = max(min(a.x1, a.x2), min(b.x1, b.x2))
+        y1 = max(min(a.y1, a.y2), min(b.y1, b.y2))
+        x2 = min(max(a.x1, a.x2), max(b.x1, b.x2))
+        y2 = min(max(a.y1, a.y2), max(b.y1, b.y2))
+        if x1<x2 and y1<y2:
+            return type(self)(x1, y1, x2, y2)
+    __and__ = intersection
+
+    def difference(self, other):
+        inter = self&other
+        if not inter:
+            yield self
+            return
+        xs = {self.x1, self.x2}
+        ys = {self.y1, self.y2}
+        if self.x1<other.x1<self.x2: xs.add(other.x1)
+        if self.x1<other.x2<self.x2: xs.add(other.x2)
+        if self.y1<other.y1<self.y2: ys.add(other.y1)
+        if self.y1<other.y2<self.y2: ys.add(other.y2)
+        for (x1, x2), (y1, y2) in itertools.product(
+            pairwise(sorted(xs)), pairwise(sorted(ys))
+        ):
+            rect = type(self)(x1, y1, x2, y2)
+            if rect!=inter:
+                yield rect
+    __sub__ = difference
+
+    def __init__(self, x1, y1, x2, y2):
+        if x1>x2 or y1>y2:
+            raise ValueError("Coordinates are invalid")
+        self.x1, self.y1, self.x2, self.y2 = x1, y1, x2, y2
+
+    def __iter__(self):
+        yield self.x1
+        yield self.y1
+        yield self.x2
+        yield self.y2
+
+    def __eq__(self, other):
+        return isinstance(other, Rectangle) and tuple(self)==tuple(other)
+    def __ne__(self, other):
+        return not (self==other)
+
+    def __repr__(self):
+        return type(self).__name__+repr(tuple(self))
+
+
+def pairwise(iterable):
+    # https://docs.python.org/dev/library/itertools.html#recipes
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 # Function to compute region code for a point(x,y)
 def computeCode(x, y, x_max, y_max, x_min, y_min):
@@ -656,9 +715,10 @@ def createJson(off, maskID, lL, uL):
             for line in file:
                 data.append(json.loads(line))
 
-    total = []
-    cID = []
+    total = list()
+    cID = list()
     dic = {}
+    bbList = list()
 
     for d in data:
         # Filename: gtav_cid0_c2818_6.tiff
@@ -688,16 +748,24 @@ def createJson(off, maskID, lL, uL):
                 # 3. Do transformation for every cam id seperately
                 # 4. Discard last annotation for every cam, since no image is given
 
+                if img['Image'] in []:
+                    addNum = 2
+                else:
+                    addNum = 1
+
                 if not off:
                     img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame) + '.tiff'
                 else:
-                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame+1) + '.tiff'
+                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame+addNum) + '.tiff'
                 
                 # Calculate better 2D bounding boxes
                 # Read stencil image
                 im_s = cv2.imread(join(in_directory, img["Image"].split(".")[0] + stencil_s))
                 # Mask array of cars set to 255, rest to 0
-                mask = bbt.maskOff(maskID, im_s)
+                try:
+                    mask = bbt.maskOff(maskID, im_s)
+                except:
+                    print("[ERROR] in bbt.maskOff for image %s"%img["Image"])
                 # Stencil is in 8-bit int
                 mask.astype(np.uint8)
 
@@ -710,7 +778,8 @@ def createJson(off, maskID, lL, uL):
 
                 # Mask depth image based in stencil; remove non-car pixels
                 im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
-               
+
+                # Transform 3D game coords into 2D image coords for bounding boxes
                 for i, det in enumerate(img["Detections"]):
                     if det["Visibility"] == True:
                         pList = list()
@@ -738,9 +807,31 @@ def createJson(off, maskID, lL, uL):
                         det["BBmin"] = {"X": BB2D[0][0][0],"Y": BB2D[0][0][1]}
                         det["BBmax"] = {"X": BB2D[0][1][0], "Y": BB2D[0][1][1]}
                         det["Pos2D"] = {"X": int(BB2D[0][0][0]+(BB2D[0][1][0]-BB2D[0][0][0])/2), "Y": int(BB2D[0][0][1]+(BB2D[0][1][1]-BB2D[0][0][1])/2)}
-                        
+
+                        img["Detections"][i] = det
+
+                # Convert bounding boxes in Rectangle-object for simple occlusion checking
+                for det in img["Detections"]:
+                    if det["Visibility"] == True:
+                        bbList.append(Rectangle(det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"], det["BBmax"]["Y"]))
+
+                # Optimize the bounding boxes
+                for i, det in enumerate(img["Detections"]):
+                    if det["Visibility"] == True:
+                        # Check if 2D bounding box is contained in another bounding box. This happens for example when cars overlap and the car behind is not visible, but its bounding box
+                        # appears within the bounding box of the front car; this is just a simple quick fix
+                        # https://stackoverflow.com/questions/25068538/intersection-and-difference-of-two-rectangles/25068722#25068722
+                        b = Rectangle(det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"], det["BBmax"]["Y"])
+                        for r in bbList:
+                            # If rectangle is contained in another, it will create 8 rectangles; in that case, set visibility to false 
+                            if len(list(r-b)) == 8:
+                                det["Visibility"] == False
+                                img["Detections"][i] = det
+                                continue
+
+                        # Use depth and stencil buffer to get better 2D bounding boxes
                         # Get old bounding box from json as (minx, miny, width, height)
-                        minx, miny, w, h = BB2D[0][0][0], BB2D[0][0][1], BB2D[0][1][0] - BB2D[0][0][0], BB2D[0][1][1] - BB2D[0][0][1]
+                        minx, miny, w, h = det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"]-det["BBmin"]["X"], det["BBmax"]["Y"]-det["BBmin"]["Y"]
 
                         # Cut out mask and depth images based on the old bounding box for this car
                         cut_d_masked = im_d_masked[miny:miny+h, minx:minx+w]
@@ -753,15 +844,18 @@ def createJson(off, maskID, lL, uL):
 
                         # Calculate contour and center of stencil blobs and draw bounding box
                         contours, centers, bb = bbt.findContours(cut_mask)
+                        if not bb:
+                            img["Detections"][i] = det
+                            continue
+                            
+                        # Get bounding box based on stencil map
+                        newBB = bbt.getStencilBB(bb)
                         # Create new mask with stencil blobs, since stencil image cannot be used due to data format (8-bit)
                         nmask = np.zeros((cut_mask.shape[0], cut_mask.shape[1]), np.uint8)
                         # Draw contours on new mask; those will be the boundaries for the flood fill
                         cv2.drawContours(nmask, contours, -1, (255, 255, 255), 1)
                         # Divide the bounding boxes of the stencil blobs and calculate for each new rectangle the centers, which will be added to the seed points later
-                        if w >= 150 or h >= 150:
-                            divider = 10
-                        else:
-                            divider = 4
+                        divider = bbt.getDivider(w, h)
                         bbcenters = bbt.divideBB(bb, divider)
                         # Check if the new seed points are lying in the contours and add them to the list
                         acceptSeeds = bbt.centerInPoly(bbcenters, contours)
@@ -784,7 +878,8 @@ def createJson(off, maskID, lL, uL):
                         if len(rects) is 1:
                             r = rects[0]
                             #print("BBnew: (%d, %d, %d, %d)"%(minx+r[0], miny+r[1], r[2], r[3]))
-                            bb1 = {'x1':minx, 'x2':minx+w, 'y1':miny, 'y2':miny+h}
+                            # bb1 = {'x1':minx, 'x2':minx+w, 'y1':miny, 'y2':miny+h} # Original 2D BB derived from 3D BB
+                            bb1 = {'x1':minx+newBB[0], 'x2':minx+newBB[0]+newBB[2], 'y1':miny+newBB[1], 'y2':miny+newBB[1]+newBB[3]}
                             bb2 = {'x1':minx+r[0], 'x2':minx+r[0]+r[2], 'y1':miny+r[1], 'y2':miny+r[1]+r[3]}
                             niou = bbt.get_iou(bb1, bb2)
                             #print("IOU: %f"%niou)
@@ -792,6 +887,18 @@ def createJson(off, maskID, lL, uL):
                             det["BBminNew"] = {"X": minx+r[0],"Y": miny+r[1]}
                             det["BBmaxNew"] = {"X": minx+r[0]+r[2], "Y": miny+r[1]+r[3]}
                             det["Pos2DNew"] = {"X": int(minx+r[0]+(r[2]/2)), "Y": int(miny+r[1]+(r[3]/2))}
+                            det["IOU"] = niou
+                        elif not not rects:
+                            # Get biggest final bounding box
+                            finalBB = bbt.getStencilBB(rects)
+                            bb1 = {'x1':minx+newBB[0], 'x2':minx+newBB[0]+newBB[2], 'y1':miny+newBB[1], 'y2':miny+newBB[1]+newBB[3]}
+                            bb2 = {'x1':minx+finalBB[0], 'x2':minx+finalBB[0]+finalBB[2], 'y1':miny+finalBB[1], 'y2':miny+finalBB[1]+finalBB[3]}
+                            niou = bbt.get_iou(bb1, bb2)
+                            #print("IOU: %f"%niou)
+                            #print("Adding better 2D bounding box!")
+                            det["BBminNew"] = {"X": minx+finalBB[0],"Y": miny+finalBB[1]}
+                            det["BBmaxNew"] = {"X": minx+finalBB[0]+finalBB[2], "Y": miny+finalBB[1]+finalBB[3]}
+                            det["Pos2DNew"] = {"X": int(minx+finalBB[0]+(finalBB[2]/2)), "Y": int(miny+finalBB[1]+(finalBB[3]/2))}
                             det["IOU"] = niou
                         
                         img["Detections"][i] = det
