@@ -1,11 +1,22 @@
--Python3 wird benötigt um die Scripte auszuführen
-- Mit "python visualizeGTA.py --plot 1" können die Daten visualisiert werden
+﻿+----------------+
+|Some statistics:|
++----------------+
+Number of images: 14962
+Number of all bounding boxes: 70071
+Number of discarded images: 0
+Number of errornous images: 10
+Number of optimized bounding boxes: 68699
+
+- Python3 & OpenCV3 wird benötigt um die Scripte auszuführen -> wurde auf Windows 10 entwickelt, da läuft alles wie es soll;
+- Mit "python visualizeGTA.py --plot 1" können die Daten visualisiert werden -> 3D BB und die 2D BB wird angezeigt
+	- bei der 2D BB wird die optimierte Version angezeigt, falls sie vorhanden ist
+- Mit "python visualizeGTA.py --plot 1 --mode 1" können die alten und die neuen 2D BB angezeigt und verglichen werden (grün=alt, rot=neu)
 - Die data_boxes.json hat folgenden Aufbau:
 
 [
   {
     "$id": "1",                                   --> ignorieren
-    "Detections": [                               --> Liste mit allen erfassten Fahrzeugen oder Menschen; jedes Objekt ist als Dictionary angelegt
+    "Detections": [                               --> Liste mit allen erfassten Fahrzeugen; jedes Objekt ist als Dictionary angelegt; Erfassung von Menschen ist deaktiviert
       {
         "FURGame": {                              --> FUR == Front Upper Right Ecke der 3D Boundingbox; Game == in Spielkoordinaten
           "X": -244.065979,                       --> X, Y, Z in Meter innerhalb des Spiels vom Ursprung (0, 0, 0) entfernt
@@ -67,7 +78,7 @@
         "Distance": 122.194252,                     --> Entfernung zwischen Objekt und der Aufnahmekamera
         "Speed": 0.0,                               --> Geschwindigkeit des Objekts in km/h zum Aufnahmezeitpunkt; nur wenn es ein Auto ist
         "Wheel": 0.0,                               --> Winkel der Räder zum Aufnahmezeitpunkt; nur wenn es ein Auto ist
-        "Visibility": false,                        --> Gibt an, ob das Objekt sichtbar zur Kamera ist; bei "false" bedeutet dies, dass es im Bild verdeckt oder nicht sichtbar ist
+        "Visibility": false,                        --> Gibt an, ob das Objekt sichtbar zur Kamera ist; bei "false" bedeutet dies, dass es im Bild verdeckt oder nicht sichtbar ist; aufgrund von Begrenzungen ist das nicht immer 100% richtig
         "DistCat": 9999,                            --> Falls Visibility == false, dann ist hier immer 9999; ansonsten wird hier die Entfernungskategorie angegeben: 15 == distance < 15m, 50 == distance < 50m usw.
         "NumberPlate": null,                        --> Kennzeichen von Fahrzeugen
         "Handle": 110659,                           --> das müsste eine eindeutige ID des Objekts sein
@@ -115,9 +126,22 @@
           "X": 868,
           "Y": 156
         },
+	"BBminNew": {                               --> Optimierte 2D Boundingbox anhand Depth und Stencil Buffer. Hier findet eine Reihe von Transformationen statt, welche in bb_transform.py hinterlegt sind
+          "X": 858,
+          "Y": 138
+        },
+        "BBmaxNew": {                               --> Optimierte 2D Boundingbox anhand Depth und Stencil Buffer. Hier findet eine Reihe von Transformationen statt, welche in bb_transform.py hinterlegt sind
+          "X": 878,
+          "Y": 175
+        },
+        "Pos2DNew": {                               --> Mittelpunkt der optimierten 2D Boundingbox in Bildkoordinaten
+          "X": 868,
+          "Y": 156
+        },
+	"IOU": 0.5,                                 --> IOU gibt an, wie viel sich die neue und die alte 2D Boundingbox überschneiden; dieser Wert kann genutzt werden um fehlerhafte Boxen zu filtern. 0.5 ist ein guter Wert
       .....
     ],
-    "Image": "gtav_cid0_c1794_1.tiff",              --> Bildname: cid0 == KreuzungsID 0 usw, c1794 == KameraID 1794 usw., die letzte Zahl im Namen gibt die Bildnummer an
+    "Image": "gtav_cid0_c1794_1.tiff",              --> Bildname: cid0 == KreuzungsID 0 usw, c1794 == KameraID 1794 usw., die letzte Zahl im Namen gibt die fortlaufende Bildnummer an
     "RealTime": "2018-02-08T17:15:21.2441691Z",     --> Aufnahmezeitpunkt so wie es am Computer angezeigt wird
     "GameTime": "13:00:00",                         --> Uhrzeit im Spiel
     "ImageWidth": 1280,                             --> Bildbreite
@@ -156,7 +180,7 @@
       "Y": 0.0,
       "Z": 0.0
     },
-    "PMatrix": {                                    --> Projectionmatrix aus dem Speicher geladen
+    "PMatrix": {                                    --> Projectionmatrix aus dem Speicher geladen, 4x4 Matrix
       "Values": [
         1.2062850616228806,
         2.6569864954245804e-09,

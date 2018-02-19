@@ -69,6 +69,7 @@ namespace GTAVisionExport
         ImageUtils TiffSaver = new ImageUtils();
         public bool runActive = false;
         public int runCnt = 0;
+        public int framenum = SettingsReader.framnum;
 
         public VisionExport()
         {
@@ -80,7 +81,7 @@ namespace GTAVisionExport
 
             this.Tick += new EventHandler(this.OnTick);
             this.KeyDown += OnKeyDown;
-            Interval = 0;
+            Interval = SettingsReader.tickWait;
 
             // Activate Trainer
             player.IsInvincible = true;
@@ -110,17 +111,18 @@ namespace GTAVisionExport
             while (runActive && runCnt <= SettingsReader.runLoop)
             {
                 Game.Pause(true);
-                runDataCollection(runCnt);
+                runDataCollection();
                 runCnt += 1;
                 Game.Pause(false);
                 Script.Wait(0);
             }
         }
 
-        public void runDataCollection(int i)
+        public void runDataCollection()
         {
             var dateTimeFormat = @"yyyy-MM-dd_HH-mm-ss";
             int crossID = 0;
+            int i = framenum;
 
             Crossings.getCrossID(out crossID);
             string fname = "gtav_cid" + crossID.ToString() + "_c" + World.RenderingCamera.Handle + "_" + i.ToString();
@@ -214,6 +216,7 @@ namespace GTAVisionExport
                 string jsonData = JsonConvert.SerializeObject(cd);
                 File.AppendAllText(path, jsonData);
                 File.AppendAllText(path, "\n");
+                framenum += 1;
             }
             else
             {

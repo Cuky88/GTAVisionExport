@@ -21,6 +21,8 @@ from subprocess import call
 import math
 import bb_transform as bbt
 import itertools
+from pathlib import Path
+from tqdm import tqdm
 
 # Python program to implement Cohen Sutherland algorithm
 # for line clipping.
@@ -705,32 +707,49 @@ def plotCV(mode, iou, minw, minh):
 def createJson(off, maskID, lL, uL):
     stencil_s = "-stencil.tiff"
     depth_s = "-depth.tiff"
+    
+    border_msg("Reading object lists from %s"%in_directory)
 
     objlist = [f for f in listdir(in_directory) if isfile(join(in_directory, f)) and f.split(".")[-1]=="json"]
     data = []
 
-    for obj in objlist:
+    for obj in tqdm(objlist):
         print(join(in_directory, obj))
         with open(join(in_directory, obj)) as file:
             for line in file:
                 data.append(json.loads(line))
 
     total = list()
-    cID = list()
+    keyList = list()
     dic = {}
     bbList = list()
+    missingFiles = 0
+    optimizedBB = 0
+    allBB = 0
+    errorImg = 0
 
-    for d in data:
+    border_msg("Starting processing of data...")
+    print("Grouping in camera id and crossing id")
+    for d in tqdm(data):
+        # Check if image exists, if not, don't process the data;
+        if not Path(join(in_directory, d['Image'])).is_file():
+            missingFiles += 1
+            continue
+
         # Filename: gtav_cid0_c2818_6.tiff
         camID = int(re.sub('[c]', '', d['Image'].split('_')[2])) # = 2818
+        crossID = int(re.sub('[cid]', '', d['Image'].split('_')[1])) # 0
+        uK = str(crossID) + "+" + str(camID)
+        # Make unique key out of crossID and camID
 
-        if camID not in cID:
-            cID.append(camID)
-            dic[camID] = [d]
+        if uK not in keyList:
+            keyList.append(uK)
+            dic[uK] = [d]
         else:
-            dic[camID].append(d)
+            dic[uK].append(d)
     
-    for key, value in dic.items():
+    print("Starting main processing pipeline")
+    for key, value in tqdm(dic.items()):
         for img in value:
             #print("%d < %d"%(value.index(img), len(value)-1))
             if value.index(img) < len(value)-1:
@@ -738,7 +757,8 @@ def createJson(off, maskID, lL, uL):
                 crossID = int(re.sub('[cid]', '', img['Image'].split('_')[1])) # 0
                 # key is camID
                 # crossID = cid
-                if (crossID is not 0 and key is -1):
+                if (crossID is not 0 and int(key.split("+")[-1]) is -1):
+                    errorImg += 1
                     continue
                 
                 num_frame = int(img['Image'].split('_')[3][:-5]) # = 6
@@ -754,30 +774,15 @@ def createJson(off, maskID, lL, uL):
                     addNum = 1
 
                 if not off:
-                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame) + '.tiff'
+                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(int(key.split("+")[-1])) + "_" + str(num_frame) + '.tiff'
                 else:
-                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(key) + "_" + str(num_frame+addNum) + '.tiff'
+                    img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(int(key.split("+")[-1])) + "_" + str(num_frame+addNum) + '.tiff'
                 
-                # Calculate better 2D bounding boxes
-                # Read stencil image
-                im_s = cv2.imread(join(in_directory, img["Image"].split(".")[0] + stencil_s))
-                # Mask array of cars set to 255, rest to 0
-                try:
-                    mask = bbt.maskOff(maskID, im_s)
-                except:
-                    print("[ERROR] in bbt.maskOff for image %s"%img["Image"])
-                # Stencil is in 8-bit int
-                mask.astype(np.uint8)
-
-                # Read depth image
-                im_d = np.array(tifffile.imread(join(in_directory, img["Image"].split(".")[0] + depth_s)))
-                # Convert float to int
-                maxF = np.max(im_d)
-                im_d = 1*im_d/maxF
-                #im_d = im_d.astype(np.uint8)
-
-                # Mask depth image based in stencil; remove non-car pixels
-                im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
+                # Check if image exists, if not, don't process the data;
+                if not Path(join(in_directory, d['Image'])).is_file():
+                    missingFiles += 1
+                    print("Image %s not found!"%img["Image"])
+                    continue
 
                 # Transform 3D game coords into 2D image coords for bounding boxes
                 for i, det in enumerate(img["Detections"]):
@@ -809,6 +814,31 @@ def createJson(off, maskID, lL, uL):
                         det["Pos2D"] = {"X": int(BB2D[0][0][0]+(BB2D[0][1][0]-BB2D[0][0][0])/2), "Y": int(BB2D[0][0][1]+(BB2D[0][1][1]-BB2D[0][0][1])/2)}
 
                         img["Detections"][i] = det
+                        allBB += 1
+
+                # Calculate better 2D bounding boxes
+                # Read stencil image
+                im_s = cv2.imread(join(in_directory, img["Image"].split(".")[0] + stencil_s))
+                # Mask array of cars set to 255, rest to 0
+                try:
+                    mask = bbt.maskOff(maskID, im_s)
+                except:
+                    errorImg += 1
+                    print("[ERROR] in bbt.maskOff for image %s"%img["Image"])
+                    continue
+
+                # Stencil is in 8-bit int
+                mask.astype(np.uint8)
+
+                # Read depth image
+                im_d = np.array(tifffile.imread(join(in_directory, img["Image"].split(".")[0] + depth_s)))
+                # Convert float to int
+                maxF = np.max(im_d)
+                im_d = 1*im_d/maxF
+                #im_d = im_d.astype(np.uint8)
+
+                # Mask depth image based in stencil; remove non-car pixels
+                im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
 
                 # Convert bounding boxes in Rectangle-object for simple occlusion checking
                 for det in img["Detections"]:
@@ -888,6 +918,7 @@ def createJson(off, maskID, lL, uL):
                             det["BBmaxNew"] = {"X": minx+r[0]+r[2], "Y": miny+r[1]+r[3]}
                             det["Pos2DNew"] = {"X": int(minx+r[0]+(r[2]/2)), "Y": int(miny+r[1]+(r[3]/2))}
                             det["IOU"] = niou
+                            optimizedBB += 1
                         elif not not rects:
                             # Get biggest final bounding box
                             finalBB = bbt.getStencilBB(rects)
@@ -900,16 +931,29 @@ def createJson(off, maskID, lL, uL):
                             det["BBmaxNew"] = {"X": minx+finalBB[0]+finalBB[2], "Y": miny+finalBB[1]+finalBB[3]}
                             det["Pos2DNew"] = {"X": int(minx+finalBB[0]+(finalBB[2]/2)), "Y": int(miny+finalBB[1]+(finalBB[3]/2))}
                             det["IOU"] = niou
+                            optimizedBB += 1
                         
                         img["Detections"][i] = det
                 total.append(img)
             else:
                 print("[WARNING] No offsetting between annotation and image found for: \n%s"%join(in_directory, img['Image']))
 
+    border_msg("Saving data to json data_boxes.json")
     with open('data_boxes.json', 'w') as outfile:
         json.dump(total, outfile, indent=2)
         #outfile.write('\n')
 
+    border_msg("Some statistics:")
+    print("\nNumber of all bounding boxes: %d"%allBB)
+    print("Number of discarded images: %d"%missingFiles)
+    print("Number of errornous images: %d"%errorImg)
+    print("Number of optimized bounding boxes: %d"%optimizedBB)
+
+def border_msg(msg):
+    row = len(msg)
+    h = ''.join(['+'] + ['-' *row] + ['+'])
+    result= h + '\n'"|"+msg+"|"'\n' + h
+    print(result)
 
 if __name__ == '__main__':
     # python visualizeGTA.py --json 1
@@ -945,7 +989,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.json is not None:
-        print("Calling createJson")
         createJson(args.off, args.mask, args.lL, args.uL)
     # Plot image with bbs
     elif args.plot == 1: plotCV(args.mode, args.iou, args.minw, args.minh)
