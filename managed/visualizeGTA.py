@@ -714,7 +714,6 @@ def createJson(off, maskID, lL, uL):
     data = []
 
     for obj in tqdm(objlist):
-        print(join(in_directory, obj))
         with open(join(in_directory, obj)) as file:
             for line in file:
                 data.append(json.loads(line))
@@ -751,6 +750,13 @@ def createJson(off, maskID, lL, uL):
     for key, value in tqdm(dic.items()):
         for img in value:
             bbList = list()
+
+            # Check if image exists, if not, don't process the data;
+            if not Path(join(in_directory, img['Image'])).is_file():
+                missingFiles += 1
+                print("Image %s not found!"%img["Image"])
+                continue
+
             #print("%d < %d"%(value.index(img), len(value)-1))
             if value.index(img) < len(value)-1:
                 # Filename: gtav_cid0_c2818_6.tiff
@@ -777,12 +783,6 @@ def createJson(off, maskID, lL, uL):
                     img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(int(key.split("+")[-1])) + "_" + str(num_frame) + '.tiff'
                 else:
                     img['Image'] = "gtav_cid" + str(int(re.sub('[cid]', '', img['Image'].split('_')[1]))) + "_c" + str(int(key.split("+")[-1])) + "_" + str(num_frame+addNum) + '.tiff'
-                
-                # Check if image exists, if not, don't process the data;
-                if not Path(join(in_directory, d['Image'])).is_file():
-                    missingFiles += 1
-                    print("Image %s not found!"%img["Image"])
-                    continue
 
                 # Transform 3D game coords into 2D image coords for bounding boxes
                 for i, det in enumerate(img["Detections"]):
