@@ -722,7 +722,6 @@ def createJson(off, maskID, lL, uL):
     total = list()
     keyList = list()
     dic = {}
-    bbList = list()
     missingFiles = 0
     optimizedBB = 0
     allBB = 0
@@ -751,6 +750,7 @@ def createJson(off, maskID, lL, uL):
     print("Starting main processing pipeline")
     for key, value in tqdm(dic.items()):
         for img in value:
+            bbList = list()
             #print("%d < %d"%(value.index(img), len(value)-1))
             if value.index(img) < len(value)-1:
                 # Filename: gtav_cid0_c2818_6.tiff
@@ -816,6 +816,9 @@ def createJson(off, maskID, lL, uL):
                         img["Detections"][i] = det
                         allBB += 1
 
+                        # Convert bounding boxes in Rectangle-object for simple occlusion checking
+                        bbList.append(Rectangle(det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"], det["BBmax"]["Y"]))
+
                 # Calculate better 2D bounding boxes
                 # Read stencil image
                 im_s = cv2.imread(join(in_directory, img["Image"].split(".")[0] + stencil_s))
@@ -840,24 +843,26 @@ def createJson(off, maskID, lL, uL):
                 # Mask depth image based in stencil; remove non-car pixels
                 im_d_masked = cv2.bitwise_and(im_d, im_d, mask=mask)
 
-                # Convert bounding boxes in Rectangle-object for simple occlusion checking
-                for det in img["Detections"]:
-                    if det["Visibility"] == True:
-                        bbList.append(Rectangle(det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"], det["BBmax"]["Y"]))
-
                 # Optimize the bounding boxes
                 for i, det in enumerate(img["Detections"]):
+                    isOccluded = 0
                     if det["Visibility"] == True:
                         # Check if 2D bounding box is contained in another bounding box. This happens for example when cars overlap and the car behind is not visible, but its bounding box
                         # appears within the bounding box of the front car; this is just a simple quick fix
                         # https://stackoverflow.com/questions/25068538/intersection-and-difference-of-two-rectangles/25068722#25068722
                         b = Rectangle(det["BBmin"]["X"], det["BBmin"]["Y"], det["BBmax"]["X"], det["BBmax"]["Y"])
                         for r in bbList:
+                            if b == r:
+                                continue
                             # If rectangle is contained in another, it will create 8 rectangles; in that case, set visibility to false 
                             if len(list(r-b)) == 8:
-                                det["Visibility"] == False
-                                img["Detections"][i] = det
+                                isOccluded = 1
                                 continue
+                        
+                        if isOccluded:
+                            det["Visibility"] == False
+                            img["Detections"][i] = det
+                            continue
 
                         # Use depth and stencil buffer to get better 2D bounding boxes
                         # Get old bounding box from json as (minx, miny, width, height)
@@ -955,6 +960,66 @@ def border_msg(msg):
     result= h + '\n'"|"+msg+"|"'\n' + h
     print(result)
 
+def filterSmall(fs):
+    data = []
+    print("Preparing data ...")
+    with open("data_boxes.json") as reader:
+        read = json.load(reader)
+        for line in read:
+            data.append(line)
+    cnt = 0
+    missing_cnt = 0
+    print("Counting small bounding boxes ..")
+    for img in data:
+        for det in img["Detections"]:
+            if det["Type"] == "car" and det["Visibility"] == True:
+                if "BBmaxNew" in det:
+                    if (det["BBmaxNew"]["Y"] - det["BBminNew"]["Y"])/ img["ImageHeight"] < fs:
+                        cnt += 1
+                elif "BBmax" in det:
+                    if (det["BBmax"]["Y"] - det["BBmin"]["Y"])/ img["ImageHeight"]  < fs:
+                        cnt += 1
+                else:
+                    missing_cnt += 1
+
+    print("In total, %d bounding boxes are smaller then %f"%(cnt, fs))
+    print("In total, %d detections were without 2D bounding boxes."%missing_cnt)
+
+def test():
+    data = []
+    print("Preparing data ...")
+    with open("data_boxes.json") as reader:
+        read = json.load(reader)
+        for line in read:
+            data.append(line)
+
+    for img in data:
+        imname = 'D:\\Devel\\GTAVisionExport\\managed\\Data\\' + img["Image"]
+        print(imname)
+        imgPil = Image.open(imname)
+        # cv2.cvtColor macht am FZI Rechner Probleme!
+        im = cv2.cvtColor(np.array(imgPil), cv2.COLOR_BGR2RGB)
+        image = np.array(im)
+
+        for det in img["Detections"]:
+            if det["Type"] == "car" and det["Visibility"] == True:
+                if "BBmaxNew" in det:
+                    meanCol = cv2.mean(image[det["BBminNew"]["Y"]:det["BBmaxNew"]["Y"], det["BBminNew"]["X"]:det["BBmaxNew"]["X"]])                   
+                    image[det["BBminNew"]["Y"]:det["BBmaxNew"]["Y"], det["BBminNew"]["X"]:det["BBmaxNew"]["X"]] = meanCol[:-1]
+
+                elif "BBmax" in det:
+                    meanCol = cv2.mean(image[det["BBmin"]["Y"]:det["BBmax"]["Y"], det["BBmin"]["X"]:det["BBmax"]["X"]]) 
+                    image[det["BBmin"]["Y"]:det["BBmax"]["Y"], det["BBmin"]["X"]:det["BBmax"]["X"]] = meanCol[:-1]
+            
+        cv2.imshow("Test",image)
+
+        key = cv2.waitKey(0)
+        if key == 27: # escape
+            cv2.destroyAllWindows()
+            break
+                
+
+
 if __name__ == '__main__':
     # python visualizeGTA.py --json 1
     # python visualizeGTA.py --json 1 --mask 2 --lL 0.00099 --ul 0.009
@@ -986,7 +1051,14 @@ if __name__ == '__main__':
     parser.add_argument('--minw', default=25, type=int)
     # Minimum old bounding box height to be selected for bb optimization
     parser.add_argument('--minh', default=10, type=int)
+    # Filter to count bounding boxes smaller then a fraction of relative image height
+    parser.add_argument('--filter', default=None, type=float)
+    # Reserved for frequently changing test functions
+    parser.add_argument('--test', default=None, type=float)
     args = parser.parse_args()
+
+    if args.filter: filterSmall(args.filter)
+    if args.test: test()
 
     if args.json is not None:
         createJson(args.off, args.mask, args.lL, args.uL)
