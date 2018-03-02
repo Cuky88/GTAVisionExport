@@ -39,49 +39,54 @@ def rotate(p, theta):
     return np.array([X,Y,Z])
 
 data = []
+cnt = 0
 with open("data_boxes.json") as reader:
     read = json.load(reader)
     for line in read:
-        # Calculate View Matrix manually
-        # camera rotation 
-        theta = (np.pi / 180) * np.array([line['Camrot']["X"],line['Camrot']["Y"], line['Camrot']["Z"]], dtype=np.float64)
+        if cnt < 6:
+            # Calculate View Matrix manually
+            # camera rotation 
+            theta = (np.pi / 180) * np.array([line['Camrot']["X"],line['Camrot']["Y"], line['Camrot']["Z"]], dtype=np.float64)
 
-        # camera direction, at 0 rotation the camera looks down the postive Y axis --> WorldNorth schaut somit immer in Cam-Richtung
-        camNorth = np.append(rotate(np.array([0,1,0]), theta), 0)
-        camUp = np.append(rotate(np.array([0,0,1]), theta), 0)
-        camEast = np.append(rotate(np.array([1,0,0]), theta), 0)
+            # camera direction, at 0 rotation the camera looks down the postive Y axis --> WorldNorth schaut somit immer in Cam-Richtung
+            camNorth = np.append(rotate(np.array([0,1,0]), theta), 0)
+            camUp = np.append(rotate(np.array([0,0,1]), theta), 0)
+            camEast = np.append(rotate(np.array([1,0,0]), theta), 0)
 
-        viewMat = np.zeros((4, 4))
-        viewMat[0,:] = camEast
-        viewMat[1,:] = camUp
-        viewMat[2,:] = -1.0*camNorth
+            viewMat = np.zeros((4, 4))
+            viewMat[0,:] = camEast
+            viewMat[1,:] = camUp
+            viewMat[2,:] = -1.0*camNorth
 
-        cx = np.dot(viewMat[0,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
-        cy = np.dot(viewMat[1,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
-        cz = np.dot(viewMat[2,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
+            cx = np.dot(viewMat[0,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
+            cy = np.dot(viewMat[1,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
+            cz = np.dot(viewMat[2,:],-1.0*np.array([[line['Campos']["X"]], [line['Campos']["Y"]], [line['Campos']["Z"]], [0]]))
 
-        viewMat[:,3] = np.array([cx, cy, cz, 1])
+            viewMat[:,3] = np.array([cx, cy, cz, 1])
 
-        line['VMatrix'] = viewMat
+            line['VMatrix'] = viewMat
 
-        # Calculate Projection Matrix manually
-        # No need to calculate projection matrix; it is only based on FOV and Near/Far clip and not camera position or rotation. Besides that,
-        # near and far clip aren't 0.15 & 800 in the prjection matrix from game; they ar 0.15 & 0.1499 - WHY?!
+            # Calculate Projection Matrix manually
+            # No need to calculate projection matrix; it is only based on FOV and Near/Far clip and not camera position or rotation. Besides that,
+            # near and far clip aren't 0.15 & 800 in the prjection matrix from game; they ar 0.15 & 0.1499 - WHY?!
 
-        # If calculating projection matrix myself, I get:
-        #data['PMatrix'] = np.transpose(np.array([1.206285105340096, 0, 0, 0, 0, 2.144507022049367, 0, 0.0, 0, 0, -1.000375070325686066137400762643, -1.0, 0, 0, -0.30005626054885290992061011439645, 0.0]).reshape((4, 4)))
+            # If calculating projection matrix myself, I get:
+            #data['PMatrix'] = np.transpose(np.array([1.206285105340096, 0, 0, 0, 0, 2.144507022049367, 0, 0.0, 0, 0, -1.000375070325686066137400762643, -1.0, 0, 0, -0.30005626054885290992061011439645, 0.0]).reshape((4, 4)))
 
-        # projMat = np.zeros((4, 4))
-        # projMat[1,1] = 1.0 / np.tan((line['CamFOV']/2) * (np.pi / 180))
-        # projMat[0,0] = (1.0 / np.tan((line['CamFOV']/2) * (np.pi / 180))) / (line['ImageWidth']/line['ImageHeight'])
-        # projMat[2,2] = -1*((-1*line['CamFarClip']+(-1)*line["CamNearClip"]) / (-1*line['CamFarClip']-(-1)*line["CamNearClip"]))
-        # projMat[3,2] = -1.0
-        # projMat[2,3] = -1*((2* -1*line['CamFarClip']*(-1)*line["CamNearClip"]) / (-1*line['CamFarClip']-(-1)*line["CamNearClip"]))
-        # line['PMatrix'] = projMat
+            # projMat = np.zeros((4, 4))
+            # projMat[1,1] = 1.0 / np.tan((line['CamFOV']/2) * (np.pi / 180))
+            # projMat[0,0] = (1.0 / np.tan((line['CamFOV']/2) * (np.pi / 180))) / (line['ImageWidth']/line['ImageHeight'])
+            # projMat[2,2] = -1*((-1*line['CamFarClip']+(-1)*line["CamNearClip"]) / (-1*line['CamFarClip']-(-1)*line["CamNearClip"]))
+            # projMat[3,2] = -1.0
+            # projMat[2,3] = -1*((2* -1*line['CamFarClip']*(-1)*line["CamNearClip"]) / (-1*line['CamFarClip']-(-1)*line["CamNearClip"]))
+            # line['PMatrix'] = projMat
 
-        line['PMatrix'] = np.transpose(np.array(line['PMatrix']['Values']).reshape((4, 4)))
+            line['PMatrix'] = np.transpose(np.array(line['PMatrix']['Values']).reshape((4, 4)))
 
-        data.append(line)
+            data.append(line)
+        else:
+            break
+        cnt += 1
 
 depths = {}
 def load_depth(name):
@@ -158,22 +163,20 @@ def getPNG(img, vecs_p, data, name):
         end += data['ImageHeight']
     
     img = np.nan_to_num(img)
+    # Remove distances bigger then far clip plane
+    bidx = img>data['CamFarClip']
+    img[bidx] = 0
     cv2.imwrite(name+"-depth.png", img)
 
-cnt = 0
 for d in data:
-    if cnt < 6:
-        name = d['Image'].split(".")[0]
-        points = prepare_points(d)
-        vecs = points_to_homo(points, d, name)
-        print('image {} points prepared'.format(name))
-        vecs_p = to_view(vecs, d)
-        vecs_p = to_world(vecs_p, d)
-        print('image {} projected'.format(name))
-        save_csv(vecs_p, name)
-        print('image {} processed'.format(name))
-        getPNG(np.zeros((d['ImageHeight'], d['ImageWidth'])), vecs_p, d, name)
-        print('deapth map created')
-    else:
-        break
-    cnt += 1
+    name = d['Image'].split(".")[0]
+    points = prepare_points(d)
+    vecs = points_to_homo(points, d, name)
+    print('image {} points prepared'.format(name))
+    vecs_p = to_view(vecs, d)
+    vecs_p = to_world(vecs_p, d)
+    print('image {} projected'.format(name))
+    #save_csv(vecs_p, name)
+    print('image {} processed'.format(name))
+    getPNG(np.zeros((d['ImageHeight'], d['ImageWidth'])), vecs_p, d, name)
+    print('deapth map created')
