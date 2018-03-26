@@ -609,7 +609,7 @@ def plotCV(mode, iou, minw, minh):
         for d in data:
             # gtav_cid1_c-1_38.tiff
             if d['Image'] == name:
-                imname = 'D:\\Devel\\GTAVisionExport\\managed\\Data\\' + name
+                imname = join(in_directory, name)
                 print(imname)
                 imgPil = Image.open(imname)
 
@@ -617,7 +617,7 @@ def plotCV(mode, iou, minw, minh):
                 im = cv2.cvtColor(np.array(imgPil), cv2.COLOR_BGR2RGB)
                 img = np.array(im)
 
-                #if img == None: print("Image %s not found!"%('D:\\Devel\\GTAVisionExport\\managed\\Data\\' + name)); break
+                #if img == None: print("Image %s not found!"%(in_directory + name)); break
 
                 for p in d['Detections']:
                     if p["Type"] == "car" and p["Visibility"] == True:
@@ -994,7 +994,7 @@ def test():
             data.append(line)
 
     for img in data:
-        imname = 'D:\\Devel\\GTAVisionExport\\managed\\Data\\' + img["Image"]
+        imname = join(in_directory, img["Image"])
         print(imname)
         imgPil = Image.open(imname)
         # cv2.cvtColor macht am FZI Rechner Probleme!
